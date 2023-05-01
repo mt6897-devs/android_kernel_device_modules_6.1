@@ -59,6 +59,7 @@
 #include <linux/poll.h>
 
 
+#if defined(SUPPORT_NAV_EVENT)
 #define FP_KEY_INPUT_HOME		KEY_SELECT
 #define FP_KEY_INPUT_MENU		KEY_MENU
 #define FP_KEY_INPUT_BACK		KEY_BACK
@@ -85,6 +86,7 @@ struct fp_key_map {
 	unsigned int type;
 	unsigned int code;
 };
+#endif
 
 enum fp_netlink_cmd {
 	FP_NETLINK_TEST = 0,
@@ -174,6 +176,8 @@ void fp_power_off(struct fp_device *fp_dev);
 void fp_hw_reset(struct fp_device *fp_dev, u8 delay);
 void fp_enable_irq(struct fp_device *fp_dev);
 void fp_disable_irq(struct fp_device *fp_dev);
+#if defined(SUPPORT_NAV_EVENT)
 void fp_kernel_key_input(struct fp_device *fp_dev, struct fp_key *fp_key);
+#endif
 
 #endif /* FP_DRIVER_H */

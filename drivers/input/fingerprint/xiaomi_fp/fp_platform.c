@@ -169,6 +169,7 @@ void fp_disable_irq(struct fp_device *fp_dev)
 	}
 }
 
+#if defined(SUPPORT_NAV_EVENT)
 void fp_kernel_key_input(struct fp_device *fp_dev, struct fp_key *fp_key)
 {
 	uint32_t key_input = 0;
@@ -200,3 +201,4 @@ void fp_kernel_key_input(struct fp_device *fp_dev, struct fp_key *fp_key)
 		input_sync(fp_dev->input);
 	}
 }
+#endif

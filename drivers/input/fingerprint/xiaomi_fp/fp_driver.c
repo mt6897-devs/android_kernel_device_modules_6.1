@@ -45,12 +45,14 @@ static struct wakeup_source *fp_wakesrc = NULL;
 struct work_struct fp_display_work;
 static struct fp_device fp;
 
+#if defined(SUPPORT_NAV_EVENT)
 static struct fp_key_map maps[] = {
 	{EV_KEY, FP_KEY_INPUT_HOME},
 	{EV_KEY, FP_KEY_INPUT_MENU},
 	{EV_KEY, FP_KEY_INPUT_BACK},
 	{EV_KEY, FP_KEY_INPUT_POWER},
 };
+#endif
 
 #ifdef XIAOMI_DRM_INTERFACE_WA
 static void notification_work(struct work_struct *work)
@@ -141,7 +143,9 @@ static irqreturn_t fp_irq(int irq, void *handle)
 static long fp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct fp_device *fp_dev = &fp;
+#if defined(SUPPORT_NAV_EVENT)
 	struct fp_key fp_key;
+#endif
 	int retval = 0;
 	u8 buf = 0;
 	u8 netlink_route = fp_dev->netlink_num;
@@ -237,6 +241,7 @@ static long fp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #endif
 		break;
 
+#if defined(SUPPORT_NAV_EVENT)
 	case FP_IOC_INPUT_KEY_EVENT:
 		pr_debug( " FP_IOC_INPUT_KEY_EVENT ======\n");
 		if (copy_from_user
@@ -247,6 +252,7 @@ static long fp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		fp_kernel_key_input(fp_dev, &fp_key);
 		break;
+#endif
 
 	case FP_IOC_ENTER_SLEEP_MODE:
 		pr_debug( " FP_IOC_ENTER_SLEEP_MODE ======\n" );
@@ -399,7 +405,9 @@ static int fp_probe(struct platform_device *driver_device)
 {
 	struct fp_device *fp_dev = &fp;
 	int status = -EINVAL, ret = 0;
+#if defined(SUPPORT_NAV_EVENT)
 	int i;
+#endif
 	FUNC_ENTRY();
 
 	INIT_LIST_HEAD(&fp_dev->device_entry);
@@ -476,10 +484,12 @@ static int fp_probe(struct platform_device *driver_device)
 		status = -ENOMEM;
 		goto err_input;
 	}
+#if defined(SUPPORT_NAV_EVENT)
 	for (i = 0; i < ARRAY_SIZE(maps); i++) {
 		input_set_capability(fp_dev->input, maps[i].type,
 					     maps[i].code);
 	}
+#endif
 	fp_dev->input->name = FP_INPUT_NAME;
 
 	if (input_register_device(fp_dev->input)) {

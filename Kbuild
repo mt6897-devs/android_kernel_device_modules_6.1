@@ -104,6 +104,4 @@ obj-y += drivers/pci/controller/
 
 obj-y += drivers/input/misc/
 
-obj-y += arch/arm64/geniezone/
-
 endif

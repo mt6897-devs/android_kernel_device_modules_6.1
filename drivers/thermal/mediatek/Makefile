@@ -30,3 +30,5 @@ obj-$(CONFIG_MTK_BOARD_THERMAL)	+= board_temp.o
 obj-$(CONFIG_MTK_VTSKIN_THERMAL)	+= vtskin_temp.o
 
 obj-$(CONFIG_MTK_WIFI_THERMAL) += wifi_cooling.o
+
+obj-$(CONFIG_MI_THERMAL_INTERFACE)              += ../xiaomi/

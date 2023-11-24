@@ -125,4 +125,5 @@ config MTK_VTSKIN_THERMAL
 	  This driver collects other sensor temperature with coefficient to calculate
 	  virtual skin temperatrure.
 
+source "$(KCONFIG_EXT_PREFIX)drivers/thermal/xiaomi/Kconfig"
 endif

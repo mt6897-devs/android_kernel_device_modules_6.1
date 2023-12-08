@@ -2347,7 +2347,8 @@ int goodix_drm_state_change_callback(struct notifier_block *self,
 	if (evdata && evdata->data && core_data) {
 		blank = *(int *)(evdata->data);
 		ts_info("notifier tp event:%lu, code:%d.", event, blank);
-		if (event == MI_DISP_DPMS_EARLY_EVENT && (blank == MI_DISP_DPMS_POWERDOWN || blank == MI_DISP_DPMS_LP1 || blank == MI_DISP_DPMS_LP2)) {
+		if ((event == MI_DISP_DPMS_EARLY_EVENT || event == MI_DISP_DPMS_EVENT)
+			&& (blank == MI_DISP_DPMS_POWERDOWN || blank == MI_DISP_DPMS_LP1 || blank == MI_DISP_DPMS_LP2)) {
 			ts_info("touchpanel suspend by %s", blank ==  MI_DISP_DPMS_POWERDOWN ? "blank" : "doze");
 			flush_workqueue(core_data->event_wq);
 			queue_work(core_data->event_wq, &core_data->suspend_work);

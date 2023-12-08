@@ -497,7 +497,8 @@ static int touch_drm_state_change_callback(struct notifier_block *self,
 
 	blank = *(int *)(evdata->data);
 
-	if (event == MI_DISP_DPMS_EARLY_EVENT &&
+	if ((event == MI_DISP_DPMS_EARLY_EVENT ||
+	     event == MI_DISP_DPMS_EVENT) &&
 	    (blank == MI_DISP_DPMS_POWERDOWN || blank == MI_DISP_DPMS_LP1 ||
 	     blank == MI_DISP_DPMS_LP2)) {
 		/*

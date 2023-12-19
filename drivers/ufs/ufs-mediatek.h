@@ -15,6 +15,10 @@
 #include <ufs/ufshcd.h>
 #include "ufs-mediatek-rpmb.h"
 
+#if defined(CONFIG_UFSFEATURE)
+#include "vendor/ufsfeature.h"
+#endif
+
 /*
  * MCQ define and struct
  */
@@ -264,6 +268,11 @@ struct ufs_mtk_host {
 	int mcq_nr_intr;
 	struct ufs_mtk_mcq_intr_info mcq_intr_info[UFSHCD_MAX_Q_NR];
 	struct tag_ufs *atag;
+
+#if defined(CONFIG_UFSFEATURE)
+	struct ufsf_feature ufsf;
+#endif
+
 };
 
 #define UFSHCD_MAX_TAG	256
@@ -323,6 +332,16 @@ struct ufs_ioctl_query_data {
 	 */
 	__u8 buffer[0];
 };
+
+#if defined(CONFIG_UFSFEATURE)
+static inline struct ufsf_feature *ufs_mtk_get_ufsf(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	return &host->ufsf;
+}
+#endif
+
 
 enum {
 	BOOTDEV_SDMMC = 1,

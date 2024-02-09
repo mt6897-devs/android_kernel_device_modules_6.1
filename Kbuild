@@ -96,6 +96,8 @@ obj-y += drivers/devfreq/
 
 obj-y += drivers/misc/mediatek/
 
+obj-y += drivers/misc/xiaomi/
+
 obj-y += sound/soc/codecs/
 
 obj-y += sound/soc/mediatek/

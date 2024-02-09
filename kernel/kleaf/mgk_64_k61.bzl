@@ -453,6 +453,7 @@ mgk_64_k61_device_modules = [
     "drivers/misc/mediatek/wlcdrv/wlcdrv.ko",
     "drivers/misc/mediatek/elliptic/elliptic-ultrasound.ko",
     "drivers/misc/mediatek/cam_log/cam_log.ko",
+    "drivers/misc/xiaomi/simtray.ko",
     "drivers/mmc/host/cqhci.ko",
     "drivers/mmc/host/mtk-mmc-dbg.ko",
     "drivers/mmc/host/mtk-mmc.ko",

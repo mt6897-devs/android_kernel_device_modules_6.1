@@ -79,4 +79,7 @@ config LEDS_REGULATOR_VIBRATOR
 	  To compile this driver as a module, choose 'M' here: the module
 	  will be called regulator-vibrator.
 
+comment "LED Triggers"
+source "$(KCONFIG_EXT_PREFIX)drivers/leds/trigger/Kconfig"
+
 endif # NEW_LEDS

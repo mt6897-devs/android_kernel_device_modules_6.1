@@ -176,6 +176,7 @@ mgk_64_k61_device_modules = [
     "drivers/leds/leds-mtk.ko",
     "drivers/leds/leds-mtk-pwm.ko",
     "drivers/leds/regulator-vibrator.ko",
+    "drivers/leds/trigger/ledtrig-backlight-drm.ko",
     "drivers/mailbox/mtk-ise-mailbox.ko",
     "drivers/mailbox/mtk-mbox-mailbox.ko",
     "drivers/media/platform/mtk-jpeg/mtk_jpeg.ko",

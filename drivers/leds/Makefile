@@ -11,3 +11,5 @@ obj-$(CONFIG_LEDS_MTK_PWM)		+= leds-mtk-pwm.o
 obj-$(CONFIG_LEDS_MTK_DISP)		+= leds-mtk-disp.o
 obj-$(CONFIG_LEDS_REGULATOR_VIBRATOR)	+= regulator-vibrator.o
 
+# LED Triggers
+obj-$(CONFIG_LEDS_TRIGGERS)		+= trigger/

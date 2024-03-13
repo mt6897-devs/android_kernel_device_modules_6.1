@@ -26,6 +26,7 @@ struct disp_feature_client {
 
 struct disp_pending_event {
 	struct list_head link;
+	int offset; // Amount of bytes already read
 	struct disp_event_resp event;
 	u8 data[];
 };

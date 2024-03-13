@@ -140,28 +140,44 @@ ssize_t mi_disp_read(struct file *filp, char __user *buffer,
 				return ret;
 		} else {
 			unsigned length = e->event.base.length;
+			unsigned copy_length = length - e->offset;
+			bool partial_read = false;
 
-			if (length > count - ret) {
+			pr_debug("length is: %d, offset is: %d, count is %zu",
+					length, e->offset, count);
+
+			if (copy_length > count - ret) {
+				copy_length = count - ret;
+
+				partial_read = true;
+			}
+
+			pr_debug("event type: %s\n", get_disp_event_type_name(e->event.base.type));
+			pr_debug("event length: %d\n", length);
+			pr_debug("%s display event copy length: %d\n",
+				get_disp_id_name(e->event.base.disp_id), copy_length);
+
+			if (copy_to_user(buffer + ret, ((__u8*)&e->event) +
+					e->offset, copy_length)) {
+				if (ret == 0)
+					ret = -EFAULT;
+				goto put_back_event;
+			}
+
+			ret += copy_length;
+			if (partial_read) {
+				e->offset += copy_length;
 put_back_event:
+				pr_debug("putting event back!");
 				spin_lock_irq(&df->client_spinlock);
 				client->event_space -= length;
 				list_add(&e->link, &client->event_list);
 				spin_unlock_irq(&df->client_spinlock);
 				wake_up_interruptible(&client->event_wait);
 				break;
+			} else {
+				kfree(e);
 			}
-
-			pr_debug("event type: %s\n", get_disp_event_type_name(e->event.base.type));
-			pr_debug("event length: %d\n", length);
-
-			if (copy_to_user(buffer + ret, &e->event, length)) {
-				if (ret == 0)
-					ret = -EFAULT;
-				goto put_back_event;
-			}
-
-			ret += length;
-			kfree(e);
 		}
 	}
 	mutex_unlock(&client->event_lock);

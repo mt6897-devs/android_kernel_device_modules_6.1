@@ -82,6 +82,8 @@ obj-y += drivers/input/fingerprint/
 
 obj-y += drivers/input/touchscreen/
 
+obj-y += drivers/input/misc/
+
 obj-y += drivers/gpu/drm/panel/
 
 obj-y += drivers/gpu/mediatek/

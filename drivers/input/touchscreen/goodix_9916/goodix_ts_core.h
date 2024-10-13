@@ -41,6 +41,8 @@
 #include <linux/fb.h>
 #endif
 
+#include "../xiaomi/xiaomi_touch.h"
+
 //#define GOODIX_SPI_NAME                 "GOODIX-TS"
 #define GOODIX_CORE_DRIVER_NAME "goodix_ts"
 #define GOODIX_PEN_DRIVER_NAME "goodix_ts,pen"
@@ -55,6 +57,7 @@
 #define GOODIX_GESTURE_DATA_LEN 16
 
 #define GOODIX_NORMAL_RESET_DELAY_MS 100
+#define GOODIX_NORMAL_GESTURE_DELAY_MS 300
 #define GOODIX_HOLD_CPU_RESET_DELAY_MS 5
 
 #define GOODIX_RETRY_3 3
@@ -570,6 +573,13 @@ struct goodix_ts_core {
 	int work_status;
 	struct completion pm_resume_completion;
 	struct notifier_block notifier;
+
+	struct xiaomi_touch_interface xiaomi_touch;
+
+	struct workqueue_struct *gesture_wq;
+	struct delayed_work gesture_work;
+
+	bool nonui_enabled;
 };
 
 /* external module structures */

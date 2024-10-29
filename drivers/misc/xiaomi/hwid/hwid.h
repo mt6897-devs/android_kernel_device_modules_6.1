@@ -21,6 +21,7 @@ typedef enum {
 	CountryIDMax = 0x7FFFFFFF
 } CountryType;
 
+const char *product_name_get(void);
 uint32_t get_hw_version_platform(void);
 uint32_t get_hw_id_value(void);
 uint32_t get_hw_country_version(void);

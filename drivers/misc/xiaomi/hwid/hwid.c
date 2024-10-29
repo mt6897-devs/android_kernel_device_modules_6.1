@@ -21,8 +21,17 @@
 static uint project;
 module_param(project, uint, 0444);
 
+static char project_name[16];
+module_param_string(project_name, project_name, sizeof(project_name), 0444);
+
 static uint hwid_value;
 module_param(hwid_value, uint, 0444);
+
+const char *product_name_get(void)
+{
+	return project_name;
+}
+EXPORT_SYMBOL(product_name_get);
 
 uint32_t get_hw_version_platform(void)
 {

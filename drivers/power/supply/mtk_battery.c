@@ -789,7 +789,7 @@ static int battery_psy_get_property(struct power_supply *psy,
 				bm_debug("time_to_full:%d, remain:ui:%d mah:%d, current_now:%d, qmax:%d\n",
 					time_to_full, remain_ui, remain_mah,
 					current_now, q_max_now);
-			val->intval = abs(time_to_full);
+			val->intval = (time_to_full > (65535 / 60)) ? -1 : time_to_full * 60;
 		}
 		ret = 0;
 		break;

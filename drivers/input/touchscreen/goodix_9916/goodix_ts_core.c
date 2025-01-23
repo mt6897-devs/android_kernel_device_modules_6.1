@@ -2015,6 +2015,10 @@ static int goodix_ts_resume(struct goodix_ts_core *core_data)
 	}
 	mutex_unlock(&goodix_modules.mutex);
 
+	if (core_data->high_report_rate) {
+		core_data->hw_ops->switch_report_rate(core_data, true);
+	}
+
 out:
 	/* enable irq */
 	hw_ops->irq_enable(core_data, true);
@@ -2111,6 +2115,9 @@ static int goodix_set_cur_value(void *private, enum touch_mode mode, int value)
 	case TOUCH_MODE_NONUI_MODE:
 		ts_core->nonui_enabled = value != 0;
 		break;
+	case TOUCH_MODE_REPORT_RATE:
+		ts_core->hw_ops->switch_report_rate(ts_core, value);
+		goto exit;
 	default:
 		ts_err("handler got mode %d with value %d, not implemented",
 		       mode, value);
@@ -2120,6 +2127,7 @@ static int goodix_set_cur_value(void *private, enum touch_mode mode, int value)
 	queue_delayed_work(ts_core->gesture_wq, &ts_core->gesture_work,
 			   msecs_to_jiffies(GOODIX_NORMAL_GESTURE_DELAY_MS));
 
+exit:
 	return 0;
 }
 

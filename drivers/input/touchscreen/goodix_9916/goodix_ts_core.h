@@ -483,6 +483,7 @@ struct goodix_ts_hw_ops {
 		struct goodix_ts_core *cd); /* clean sync flag */
 	int (*get_capacitance_data)(struct goodix_ts_core *cd,
 				    struct ts_rawdata_info *info);
+	int (*switch_report_rate)(struct goodix_ts_core *cd, bool high);
 	int (*get_frame_data)(struct goodix_ts_core *cd,
 			      struct ts_framedata *info);
 	int (*read_flash)(struct goodix_ts_core *cd, unsigned int addr,
@@ -580,6 +581,7 @@ struct goodix_ts_core {
 	struct delayed_work gesture_work;
 
 	bool nonui_enabled;
+	bool high_report_rate;
 };
 
 /* external module structures */

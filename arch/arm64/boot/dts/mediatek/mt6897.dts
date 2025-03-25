@@ -12732,7 +12732,7 @@
 				MML_WROT3 MML_WROT3_AIDSEL
 				MML_FG0 MML_FG0_AIDSEL
 				MML_FG1 MML_FG1_AIDSEL>;
-			racing-enable;
+			//racing-enable;
 			event-ir-mml-ready = /bits/ 16 <CMDQ_SYNC_TOKEN_MML_IR_MML_READY>;
 			event-ir-disp-ready = /bits/ 16 <CMDQ_SYNC_TOKEN_MML_IR_DISP_READY>;
 			event-ir-mml-stop = /bits/ 16 <CMDQ_SYNC_TOKEN_MML_MML_STOP>;

@@ -1,4 +1,4 @@
-DEVICE_MODULES_DIR=${KERNEL_DIR}
+DEVICE_MODULES_DIR="kernel_device_modules-6.1"
 # Compile these modules with the GKI kernel
 KERNEL_DIR="kernel-6.1"
 # Compute the path of this project relative to KERNEL_DIR

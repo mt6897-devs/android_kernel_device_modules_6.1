@@ -18,6 +18,7 @@ done
 set +a
 
 KLEAF_SUPPORTED_PROJECTS="mgk_64_k61"
+KLEAF_GKI_CHECKER="no"
 
 if [ -z ${MODE} ]
 then

@@ -28,9 +28,8 @@ if [ -z ${OUT_DIR} ]
 then
   OUT_DIR=${ROOT_DIR}/out
 fi
-if ! [ "x${OUT_DIR}" = "x/*" ]
-then
-  OUT_DIR=$(readlink -f ${ROOT_DIR}/${OUT_DIR})
+if [ ! -d "${OUT_DIR}" ]; then
+  OUT_DIR="${ROOT_DIR}/${OUT_DIR}"
 fi
 
 if [ "x${DEBUG}" == "x1" ]

@@ -19,11 +19,6 @@ set +a
 
 KLEAF_SUPPORTED_PROJECTS="mgk_64_k61"
 
-if [ -z ${PROJECT} ]
-then
-  echo "ERROR: PROJECT must be set!"
-  exit 1
-fi
 if [ -z ${MODE} ]
 then
   MODE=user

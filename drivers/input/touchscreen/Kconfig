@@ -5,8 +5,6 @@
 
 if INPUT_TOUCHSCREEN
 
-#source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/goodix_9916r/Kconfig"
-
 config TOUCHSCREEN_MTK_TOUCH
        string "Touch IC name for Mediatek package"
        help
@@ -26,6 +24,7 @@ config TOUCHSCREEN_MT6985_ALPHA_SUPPORT
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyttsp_spi.
 
+source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/goodix_9916/Kconfig"
 source "$(KCONFIG_EXT_PREFIX)drivers/input/touchscreen/xiaomi/Kconfig"
 
 endif

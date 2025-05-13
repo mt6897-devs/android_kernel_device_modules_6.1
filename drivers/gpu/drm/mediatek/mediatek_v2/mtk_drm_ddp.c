@@ -23507,12 +23507,19 @@ void mtk_disp_mutex_src_set(struct mtk_drm_crtc *mtk_crtc, bool is_cmd_mode)
 	DDPINFO("%s, id:%s, val:0x%x\n", __func__, mtk_dump_comp_str_id(id),
 	       ddp->data->mutex_sof[val]);
 
+	writel_relaxed(0x1, ddp->regs + 0x28);
+	writel_relaxed(0x0, ddp->regs + 0x28);
+
 	writel_relaxed(ddp->data->mutex_sof[val],
 		       ddp->regs + DISP_REG_MUTEX_SOF(ddp->data, mutex->id));
 	if (ddp->ovlsys0_regs) {
 		DDPINFO("%s, disp0 ovlsys0 id:%s, reg:0x%x, val:0x%x\n", __func__,
 			mtk_dump_comp_str_id(id), DISP_REG_MUTEX_SOF(ddp->data, mutex->id),
 			ddp->data->mutex_ovlsys_sof[val]);
+
+		writel_relaxed(0x1, ddp->ovlsys0_regs + 0x28);
+		writel_relaxed(0x0, ddp->ovlsys0_regs + 0x28);
+
 		writel_relaxed(ddp->data->mutex_ovlsys_sof[val],
 			       ddp->ovlsys0_regs +
 			       DISP_REG_MUTEX_SOF(ddp->data, mutex->id));
@@ -23527,6 +23534,10 @@ void mtk_disp_mutex_src_set(struct mtk_drm_crtc *mtk_crtc, bool is_cmd_mode)
 			DDPINFO("%s, disp1 ovlsys1 id:%s, reg:0x%x, val:0x%x\n", __func__,
 				mtk_dump_comp_str_id(id), DISP_REG_MUTEX_SOF(ddp->data, mutex->id),
 				ddp->data->mutex_ovlsys_sof[val]);
+
+			writel_relaxed(0x1, ddp->ovlsys1_regs + 0x28);
+			writel_relaxed(0x0, ddp->ovlsys1_regs + 0x28);
+
 			writel_relaxed(
 				ddp->data->mutex_ovlsys_sof[val],
 				ddp->ovlsys1_regs + DISP_REG_MUTEX_SOF(ddp->data, mutex->id));
@@ -23552,6 +23563,10 @@ void mtk_disp_mutex_src_set(struct mtk_drm_crtc *mtk_crtc, bool is_cmd_mode)
 		DDPINFO("%s, disp1 id:%s, val:0x%x\n", __func__,
 			mtk_dump_comp_str_id(id),
 			ddp->data->mutex_sof[val]);
+
+		writel_relaxed(0x1, ddp->side_regs + 0x28);
+		writel_relaxed(0x0, ddp->side_regs + 0x28);
+
 		writel_relaxed(
 			ddp->data->mutex_sof[val],
 			ddp->side_regs + DISP_REG_MUTEX_SOF(ddp->data, mutex->id));

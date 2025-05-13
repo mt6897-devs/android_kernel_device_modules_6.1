@@ -71,7 +71,7 @@ static int mtk_disp_tdshp_write_reg(struct mtk_ddp_comp *comp,
 		mutex_lock(&primary_data->global_lock);
 
 	cmdq_pkt_write(handle, comp->cmdq_base,
-		comp->regs_pa + DISP_TDSHP_CFG, 0x2 | primary_data->relay_value, 0x3);
+		comp->regs_pa + DISP_TDSHP_CFG, 0x2 | primary_data->relay_value, 0x11);
 
 	/* to avoid different show of dual pipe, pipe1 use pipe0's config data */
 	disp_tdshp_regs = primary_data->tdshp_regs;

@@ -83,6 +83,11 @@
 #include "slbc_ops.h"
 #include <linux/syscalls.h>
 
+#ifdef CONFIG_MI_DISP
+#include "mi_disp/mi_disp_feature.h"
+#include "mi_disp/mi_disp_log.h"
+#endif
+
 #if IS_ENABLED(CONFIG_MTK_DEVINFO)
 #include <linux/nvmem-consumer.h>
 #endif
@@ -115,6 +120,8 @@ long long mutex_time_period;
 const char *mutex_locker;
 
 int aod_scp_flag;
+int rpo_enh_flag;
+unsigned int g_disp_aod_mode;
 unsigned long long mutex_nested_time_start;
 unsigned long long mutex_nested_time_end;
 long long mutex_nested_time_period;
@@ -1049,10 +1056,8 @@ static void mtk_atomit_doze_update_pq(struct drm_crtc *crtc, unsigned int stage,
 			mtk_crtc->gce_obj.event[EVENT_CMD_EOF]);
 
 	for_each_comp_in_cur_crtc_path(comp, mtk_crtc, i, j) {
-		if (comp && (mtk_ddp_comp_get_type(comp->id) == MTK_DISP_AAL ||
-				mtk_ddp_comp_get_type(comp->id) == MTK_DISP_CCORR ||
-				mtk_ddp_comp_get_type(comp->id) == MTK_DISP_COLOR||
-				mtk_ddp_comp_get_type(comp->id) == MTK_DMDP_AAL)) {
+		if (comp && (mtk_ddp_comp_get_type(comp->id) == MTK_DISP_CCORR ||
+				mtk_ddp_comp_get_type(comp->id) == MTK_DISP_COLOR)) {
 			if (comp->funcs && comp->funcs->bypass)
 				mtk_ddp_comp_bypass(comp, bypass, cmdq_handle);
 		}
@@ -1060,10 +1065,8 @@ static void mtk_atomit_doze_update_pq(struct drm_crtc *crtc, unsigned int stage,
 
 	if (mtk_crtc->is_dual_pipe) {
 		for_each_comp_in_dual_pipe(comp, mtk_crtc, i, j) {
-			if (comp && (mtk_ddp_comp_get_type(comp->id) == MTK_DISP_AAL ||
-				mtk_ddp_comp_get_type(comp->id) == MTK_DISP_CCORR ||
-				mtk_ddp_comp_get_type(comp->id) == MTK_DISP_COLOR||
-				mtk_ddp_comp_get_type(comp->id) == MTK_DMDP_AAL)) {
+			if (comp && (mtk_ddp_comp_get_type(comp->id) == MTK_DISP_CCORR ||
+				mtk_ddp_comp_get_type(comp->id) == MTK_DISP_COLOR)) {
 				if (comp->funcs && comp->funcs->bypass)
 					mtk_ddp_comp_bypass(comp, bypass, cmdq_handle);
 			}
@@ -1860,6 +1863,14 @@ static int mtk_atomic_check(struct drm_device *dev,
 				old_state->bl_sync_gamma_gain[GAMMA_GAIN_2];
 			new_state->bl_sync_gamma_gain[GAMMA_GAIN_RANGE] =
 				old_state->bl_sync_gamma_gain[GAMMA_GAIN_RANGE];
+		}
+
+		if (new_state->prop_val[CRTC_PROP_DOZE_ACTIVE] == 1) {
+			DDPINFO("[CRTC:%d:%s] doze active = 1\n",
+				crtc->base.id, crtc->name);
+			g_disp_aod_mode = 1;
+		} else {
+			g_disp_aod_mode = 0;
 		}
 
 		if (old_state->prop_val[CRTC_PROP_DOZE_ACTIVE] ==
@@ -6378,7 +6389,7 @@ int mtk_drm_get_display_caps_ioctl(struct drm_device *dev, void *data,
 #endif
 
 	/* setting lcm_color_mode to HWC change to DSI_FILL_CONNECTOR_PROP_CAPS */
-	caps_info->lcm_color_mode = MTK_DRM_COLOR_MODE_NATIVE;
+	caps_info->lcm_color_mode = MTK_DRM_COLOR_MODE_DISPLAY_P3;
 	if (mtk_drm_helper_get_opt(private->helper_opt, MTK_DRM_OPT_OVL_WCG) ||
 		private->data->not_support_csc) {
 		if (params)
@@ -7790,6 +7801,12 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 					private->data->fourth_path_data_discrete);
 			if (ret < 0)
 				goto err_component_unbind;
+		}
+
+		if (of_property_read_bool(private->mmsys_dev->of_node,
+			"rpo-enhance-on")) {
+			rpo_enh_flag = 1;
+			DDPMSG("%s RPO-ENH OFF\n", __func__);
 		}
 	}
 	/* TODO: allow_fb_modifiers = 1 and format_modifiers = null make drm_warn_on.
@@ -9769,6 +9786,11 @@ static int __init mtk_drm_init(void)
 	int i;
 
 	DDPINFO("%s+\n", __func__);
+
+#ifdef CONFIG_MI_DISP
+	mi_disp_feature_init();
+#endif
+
 	for (i = 0; i < ARRAY_SIZE(mtk_drm_drivers); i++) {
 		DDPINFO("%s register %s driver\n",
 			__func__, mtk_drm_drivers[i]->driver.name);

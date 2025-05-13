@@ -18,6 +18,7 @@ enum DISP_QOS_BW_MODE {
 	DISP_BW_UPDATE_PENDING,
 };
 
+#define NO_PENDING_MM (0xFFFF)
 #define NO_PENDING_HRT (0xFFFF)
 #define OVL_REQ_HRT (0x1)
 #define RDMA_REQ_HRT (0x2)
@@ -42,6 +43,7 @@ struct mtk_larb_hrt_req {
 
 struct mtk_drm_qos_ctx {
 	unsigned int last_hrt_req;
+	unsigned int last_mmclk_req;
 	unsigned int last_mmclk_req_idx;
 	unsigned int last_larb_hrt_max;
 	atomic_t last_hrt_idx;

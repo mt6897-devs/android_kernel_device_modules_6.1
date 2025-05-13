@@ -100,6 +100,9 @@ module_param(mml_racing_eoc, int, 0644);
 int mml_hw_perf;
 module_param(mml_hw_perf, int, 0644);
 
+int mml_timeout_reset;
+module_param(mml_timeout_reset, int, 0644);
+
 #if IS_ENABLED(CONFIG_MTK_MML_DEBUG)
 /* Assign bit to dump in/out buffer frame
  * bit 0: dump input
@@ -1685,9 +1688,11 @@ static void core_taskdump(struct mml_task *task, u32 pipe, int err)
 	mml_record_dump(task->config->mml);
 	mml_err("error dump %d end", cnt);
 
-	call_dbg_op(path->mmlsys, reset, task->config, pipe);
+	if (mml_timeout_reset) {
+		call_dbg_op(path->mmlsys, reset, task->config, pipe);
+		mml_err("error %d engine reset end", cnt);
+	}
 
-	mml_err("error %d engine reset end", cnt);
 	mml_cmdq_err = 0;
 
 #if IS_ENABLED(CONFIG_MTK_MML_DEBUG)

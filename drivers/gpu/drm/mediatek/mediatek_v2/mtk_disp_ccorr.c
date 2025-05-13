@@ -26,6 +26,7 @@
 #include "mtk_drm_helper.h"
 #include "platform/mtk_drm_platform.h"
 #include "mtk_disp_pq_helper.h"
+#include "mi_disp/mi_dsi_display.h"
 
 #ifdef CONFIG_LEDS_MTK_MODULE
 #define CONFIG_LEDS_BRIGHTNESS_CHANGED
@@ -448,6 +449,10 @@ void disp_pq_notify_backlight_changed(struct mtk_ddp_comp *comp, int bl_1024)
 	primary_data->old_pq_backlight = primary_data->pq_backlight;
 	primary_data->pq_backlight = bl_1024;
 	spin_unlock_irqrestore(&primary_data->pq_bl_change_lock, flags);
+
+#if CONFIG_MI_DISP
+	mi_disp_feature_event_notify_by_type(mi_get_disp_id("primary"), MI_DISP_EVENT_BACKLIGHT, sizeof(bl_1024), bl_1024);
+#endif
 
 	if (atomic_read(&primary_data->ccorr_is_init_valid) != 1)
 		return;

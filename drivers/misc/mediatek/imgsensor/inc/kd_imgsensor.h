@@ -645,6 +645,17 @@
 #define SENSOR_DRVNAME_GC13A2_MIPI_RAW          "gc13a2_mipi_raw"
 #define SENSOR_DRVNAME_S5KGN9SP_MIPI_RAW        "s5kgn9sp_mipi_raw"
 
+/*XIAOMI ADD START*/
+#define DUCHAMPOV64B40WIDE_SENSOR_ID               0x5664
+#define SENSOR_DRVNAME_DUCHAMPOV64B40WIDE_MIPI_RAW "duchampov64b40wide_mipi_raw"
+#define DUCHAMPOV16A1QFRONT_SENSOR_ID                 0x1641
+#define SENSOR_DRVNAME_DUCHAMPOV16A1QFRONT_MIPI_RAW  "duchampov16a1qfront_mipi_raw"
+#define DUCHAMPSC202PCSMACRO_SENSOR_ID                 0xEB52
+#define SENSOR_DRVNAME_DUCHAMPSC202PCSMACRO_MIPI_RAW  "duchampsc202pcsmacro_mipi_raw"
+#define DUCHAMPOV08D10ULTRA_SENSOR_ID               0x5608
+#define SENSOR_DRVNAME_DUCHAMPOV08D10ULTRA_MIPI_RAW "duchampov08d10ultra_mipi_raw"
+/*XIAOMI ADD END*/
+
 /******************************************************************************
  *
  ******************************************************************************/

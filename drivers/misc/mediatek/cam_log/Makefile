@@ -11,8 +11,4 @@
 # GNU General Public License for more details.
 #
 
-obj-$(CONFIG_NFC_ST21NFC)		+= st21nfc/
-obj-$(CONFIG_NFC_ST54_SPI)		+= st54spi.o
-
-obj-$(CONFIG_NXP_P73_DEVICES)           += p73-spi/
-obj-$(CONFIG_NFC_NXP_I2C)               += nxp-i2c/
+obj-m += cam_log.o

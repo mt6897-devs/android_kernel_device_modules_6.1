@@ -978,6 +978,13 @@ void (*pe_get_exit_action(uint8_t pe_state))
 	return retval;
 }
 
+int pd_usb_connected = 0;
+int get_pd_usb_connected(void)
+{
+	return pd_usb_connected;
+}
+EXPORT_SYMBOL(get_pd_usb_connected);
+
 static inline void print_state(
 	struct pd_port *pd_port, uint8_t state)
 {
@@ -1027,6 +1034,13 @@ static inline void pd_pe_state_change(
 		return;
 	}
 
+	if (new_state >= PE_IDLE1)
+		pd_usb_connected = 0;
+	else if (new_state == PE_SNK_READY)
+		pd_usb_connected = 1;
+	else if (new_state == PE_SRC_READY)
+		pd_usb_connected = 2;
+
 	if (new_state < PE_IDLE1 && new_state != PE_ERROR_RECOVERY)
 		prev_exit_action = pe_get_exit_action(old_state);
 	else
@@ -1063,6 +1077,7 @@ static inline void pd_pe_state_change(
 	else
 		pd_port->pe_pd_state = new_state;
 
+	PE_DBG("get ps current state %s\r\n", pe_state_name[new_state]);
 	pd_port->pe_state_curr = new_state;
 
 	/* Change RX cap first for compliance */

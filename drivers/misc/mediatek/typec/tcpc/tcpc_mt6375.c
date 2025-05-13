@@ -2279,8 +2279,8 @@ static int mt6375_tcpc_init_irq(struct mt6375_tcpc_data *ddata)
 	ddata->irq = ret;
 	device_init_wakeup(ddata->dev, true);
 	ret = devm_request_threaded_irq(ddata->dev, ret, NULL,
-					mt6375_pd_evt_handler, IRQF_ONESHOT,
-					dev_name(ddata->dev), ddata);
+					mt6375_pd_evt_handler, IRQF_ONESHOT |
+					IRQF_NO_SUSPEND, dev_name(ddata->dev), ddata);
 	if (ret < 0) {
 		dev_err(ddata->dev, "failed to request irq %d\n", ddata->irq);
 		return ret;

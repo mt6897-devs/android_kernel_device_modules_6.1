@@ -159,4 +159,22 @@ config SND_SOC_MT6681_ACCDET
 	  detection mechanism. Select N if you don't
 	  have jack on board.
 
+config SND_SMARTPA_AW882XX
+	tristate "SoC Audio for awinic aw882xx series"
+	depends on I2C
+
+config SND_SMARTPA_AW882XX_GPIO_CONFIG
+	tristate "SoC Audio for awinic aw882xx series config reset GPIO"
+	depends on I2C
+
+# et7480 type-c switch device configuration
+config USB_SWITCH_ET7480
+	tristate "TYPE-C switch for MediaTek MT6338 ACCDET driver"
+	depends on I2C
+	help
+	  TYPE-C switch for ACCDET means Accessory Detection technology,
+	  MediaTek develop it for ASoC codec soc-jack
+	  detection mechanism. Select N if you don't
+	  have jack on board.
+
 endmenu

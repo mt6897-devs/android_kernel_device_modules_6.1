@@ -4,3 +4,5 @@ config SIMTRAY_STATUS
         default n
         help
           Say 'y' here to support SIM tray GPIO detection
+
+source "$(KCONFIG_EXT_PREFIX)drivers/misc/xiaomi/hwid/Kconfig"

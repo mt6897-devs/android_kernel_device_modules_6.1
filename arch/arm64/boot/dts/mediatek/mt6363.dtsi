@@ -327,6 +327,7 @@
 				regulator-enable-ramp-delay = <180>;
 				regulator-allowed-modes = <0 2>;
 				regulator-allow-set-load;
+				regulator-always-on;
 			};
 			mt6363_vtref18: vtref18 {
 				regulator-compatible = "VTREF18";

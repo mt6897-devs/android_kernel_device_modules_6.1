@@ -72,5 +72,6 @@ define_mgk(
     device_user_modules = mgk_64_k61_device_user_modules,
     platform_device_user_modules = mgk_64_k61_platform_device_user_modules,
     symbol_list = mgk_kmi_symbol_list,
+    dtb_files = ["mt6897.dtb"],
 )
 

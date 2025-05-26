@@ -140,6 +140,10 @@ int notify_oneshot_sensor(enum oneshot_sensor_type sensor_type, int value)
 	if (atomic_read(&pocket_disable_gestures)) {
 		pr_info("gesture of type %d with value %d ignored due to pocket/nonui mode\n",
 			sensor_type, value);
+	} else if (!atomic_read(&suspended)) {
+		pr_info("gesture of type %d with value %d ignored because touch"
+			"screen is in resume state\n",
+			sensor_type, value);
 	} else {
 		sensor = oneshot_sensor_map[sensor_type];
 		atomic_set(&sensor->pending_event, value);
@@ -485,6 +489,7 @@ static int touch_drm_state_change_callback(struct notifier_block *self,
 {
 	struct mi_disp_notifier *evdata = data;
 	int blank;
+	int i;
 
 	if (!evdata || !evdata->data)
 		return 0;
@@ -514,6 +519,19 @@ static int touch_drm_state_change_callback(struct notifier_block *self,
 		 */
 		atomic_set(&suspended, 0);
 		cancel_delayed_work_sync(&oneshot_sensor_enable_work);
+
+		/*
+		 * Resuming invalidates all pending events to avoid
+		 * phantom wakes after suspending again.
+		 */
+		for (i = 0; i < ONESHOT_SENSOR_TYPE_NUM; i++) {
+			if (atomic_xchg(&oneshot_sensor_map[i]->pending_event,
+					0)) {
+				pr_info("cleared pending event for "
+					"sensor %d due to unblank\n",
+					i);
+			}
+		}
 	}
 
 	return 0;

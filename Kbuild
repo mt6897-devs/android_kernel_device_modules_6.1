@@ -106,6 +106,4 @@ obj-y += drivers/input/misc/
 
 obj-y += arch/arm64/geniezone/
 
-obj-y += drivers/staging/process_exit/
-
 endif

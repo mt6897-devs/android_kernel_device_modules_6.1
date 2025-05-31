@@ -110,8 +110,6 @@ source "$(KCONFIG_EXT_PREFIX)fs/f2fs/Kconfig"
 
 source "$(KCONFIG_EXT_PREFIX)drivers/input/misc/Kconfig"
 
-source "$(KCONFIG_EXT_PREFIX)drivers/staging/process_exit/Kconfig"
-
 config FACTORY_BUILD
 	bool "distiguish factory version from dev version"
 	default n

@@ -104,6 +104,4 @@ obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/pci/controller/
 
 obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/input/misc/
 
-obj-y += ../$(DEVICE_MODULES_REL_DIR)/drivers/staging/process_exit/
-
 endif

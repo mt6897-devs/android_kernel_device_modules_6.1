@@ -2473,6 +2473,18 @@
 			<125000 2493>;
 	};
 
+	tboard_thermistor4: thermal-ntc4 {
+	};
+
+	tboard_thermistor5: thermal-ntc5 {
+	};
+
+	tboard_thermistor6: thermal-ntc6 {
+	};
+
+	tboard_thermistor7: thermal-ntc7 {
+	};
+
 	tsx_thermistor: thermal-ntc6@1cc0354c {
 		compatible = "mediatek,mt6685-tia-ntc";
 		#thermal-sensor-cells = <0>;

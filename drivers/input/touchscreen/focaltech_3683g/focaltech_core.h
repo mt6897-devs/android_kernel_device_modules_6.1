@@ -330,6 +330,7 @@ struct fts_ts_data {
 #elif defined(CONFIG_FB)
     struct notifier_block fb_notif;
 #endif
+    struct mutex cmd_update_mutex;
 
 };
 

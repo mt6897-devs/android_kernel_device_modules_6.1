@@ -1018,6 +1018,7 @@ static int fts_input_report_touch_pv2(struct fts_ts_data *ts_data, u8 *touch_buf
     int pointid = 0;
     int base = 0;
     int max_touch_num = ts_data->pdata->max_touch_number;
+    int super_resolution_factor = ts_data->pdata->super_resolution_factors;
     struct ts_event *events = ts_data->events;
 
     event_num = touch_buf[FTS_TOUCH_E_NUM] & 0x0F;
@@ -1050,8 +1051,8 @@ static int fts_input_report_touch_pv2(struct fts_ts_data *ts_data, u8 *touch_buf
         events[i].x = (events[i].x * FTS_TOUCH_HIRES_X ) / FTS_HI_RES_X_MAX;
         events[i].y = (events[i].y * FTS_TOUCH_HIRES_X ) / FTS_HI_RES_X_MAX;
 #else
-        events[i].x = events[i].x  / FTS_HI_RES_X_MAX;
-        events[i].y = events[i].y  / FTS_HI_RES_X_MAX;
+        events[i].x = events[i].x * super_resolution_factor / FTS_HI_RES_X_MAX;
+        events[i].y = events[i].y * super_resolution_factor / FTS_HI_RES_X_MAX;
 #endif
         events[i].area = touch_buf[FTS_TOUCH_OFF_AREA + base];
         events[i].minor = touch_buf[FTS_TOUCH_OFF_MINOR + base];
@@ -2003,6 +2004,13 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
             FTS_INFO("invalied iovdd name length: %ld > %ld",
                  strlen(name_tmp), sizeof(pdata->iovdd_name));
     }
+
+    ret = of_property_read_u32(np, "focaltech,super-resolution-factors", &temp_val);
+    if (ret < 0) {
+	    FTS_ERROR("Unable to get super-resolution-factors, please use default");
+	    pdata->super_resolution_factors = 1;
+    }  else
+	    pdata->super_resolution_factors = temp_val;
 
     ret = of_property_read_u32(np, "focaltech,max-touch-number", &temp_val);
     if (ret < 0) {

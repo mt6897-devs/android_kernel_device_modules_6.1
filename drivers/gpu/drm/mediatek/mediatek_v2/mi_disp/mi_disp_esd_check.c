@@ -97,6 +97,7 @@ static int mtk_drm_esd_recover(struct drm_crtc *crtc)
 		goto done;
 	}
 	mtk_drm_idlemgr_kick(__func__, &mtk_crtc->base, 0);
+	cmdq_mbox_stop(mtk_crtc->gce_obj.client[CLIENT_CFG]);
 
 	mtk_ddp_comp_io_cmd(output_comp, NULL, CONNECTOR_PANEL_DISABLE, NULL);
 
@@ -112,17 +113,17 @@ static int mtk_drm_esd_recover(struct drm_crtc *crtc)
 #endif
 #endif
 
-	DDPMSG("%s+ mtk_crtc->qos_ctx->last_hrt_req: %d\n", __func__,
-		mtk_crtc->qos_ctx->last_hrt_req);
 	if (mtk_drm_helper_get_opt(priv->helper_opt,
-		MTK_DRM_OPT_MMQOS_SUPPORT)) {
+		MTK_DRM_OPT_MMQOS_SUPPORT) && !mtk_crtc_is_frame_trigger_mode(crtc)) {
+		DDPMSG("%s+ mtk_crtc->qos_ctx->last_hrt_req: %d\n", __func__,
+			mtk_crtc->qos_ctx->last_hrt_req);
 		if (drm_crtc_index(crtc) == 0)
 			mtk_disp_set_hrt_bw(mtk_crtc,
 				mtk_crtc->qos_ctx->last_hrt_req);
 		last_hrt_req = mtk_crtc->qos_ctx->last_hrt_req;
+		DDPMSG("%s- mtk_crtc->qos_ctx->last_hrt_req: %d\n", __func__,
+			mtk_crtc->qos_ctx->last_hrt_req);
 	}
-	DDPMSG("%s- mtk_crtc->qos_ctx->last_hrt_req: %d\n", __func__,
-		mtk_crtc->qos_ctx->last_hrt_req);
 
 	mdelay(150);
 

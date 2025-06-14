@@ -44,7 +44,7 @@ static char lockdown_info[64] = {0};
 extern void mipi_dsi_dcs_write_gce2(struct mtk_dsi *dsi, struct cmdq_pkt *dummy,
 					  const void *data, size_t len);
 
-unsigned char temp[25][255] = {0};
+unsigned char temp[MAX_TX_CMD_NUM][255] = {0};
 bool is_backlight_set_skip(struct mtk_dsi *dsi, u32 bl_lvl)
 {
 	if (dsi->mi_cfg.in_fod_calibration ||
@@ -182,12 +182,12 @@ ssize_t dsi_panel_write_mipi_reg(char *buf, size_t count)
 			pr_err("%s error\n", __func__);
 		}
 
-		pr_info("read lcm addr:%pad--dlen:%d\n",
-			&(*(char *)(cmd_msg->tx_buf[0])), (int)cmd_msg->rx_len[0]);
+		pr_info("read lcm addr:0x%02x--dlen:%d\n",
+			*(char *)(cmd_msg->tx_buf[0]), (int)cmd_msg->rx_len[0]);
 		for (j = 0; j < cmd_msg->rx_len[0]; j++) {
-			pr_info("read lcm addr:%pad--byte:%d,val:%pad 0x%02x\n",
-				&(*(char *)(cmd_msg->tx_buf[0])), j,
-				&(*(char *)(cmd_msg->rx_buf[0] + j)), *(unsigned char *)(cmd_msg->rx_buf[0] + j));
+			pr_info("read lcm addr:0x%02x--byte:%d,val:0x%02x 0x%02x\n",
+				*(char *)(cmd_msg->tx_buf[0]), j,
+				*(char *)(cmd_msg->rx_buf[0] + j), *(char *)(cmd_msg->rx_buf[0] + j));
 		}
 		goto exit;
 	} else {
@@ -533,7 +533,7 @@ ssize_t mi_dsi_panel_write_mipi_reg(char *buf)
 		cmd_msg->tx_len[0] = 1;
 
 		cmd_msg->rx_cmd_num = 1;
-
+		lcm_mipi_read_write.lcm_setting_table.cmd = tx[0];
 		if (lcm_mipi_read_write.read_count > 10) {
 			read_length = lcm_mipi_read_write.read_count;
 			read_buffer_position = 0;
@@ -557,12 +557,12 @@ ssize_t mi_dsi_panel_write_mipi_reg(char *buf)
 			if (rc != 0) {
 				pr_err("%s error\n", __func__);
 			}
-			pr_info("read lcm addr:%pad--dlen:%d\n",
-				&(*(char *)(cmd_msg->tx_buf[0])), (int)cmd_msg->rx_len[0]);
+			pr_info("read lcm addr:0x%02x--dlen:%d\n",
+				*(char *)(cmd_msg->tx_buf[0]), (int)cmd_msg->rx_len[0]);
 			for (j = 0; j < cmd_msg->rx_len[0]; j++) {
-				pr_info("read lcm addr:%pad--byte:%d,val:%pad\n",
-					&(*(char *)(cmd_msg->tx_buf[0])), j,
-					&(*(char *)(cmd_msg->rx_buf[0] + j)));
+				pr_info("read lcm addr:0x%02x--byte:%d,val:0x%02x\n",
+					*(char *)(cmd_msg->tx_buf[0]), j,
+					*(char *)(cmd_msg->rx_buf[0] + j));
 			}
 		}
 		goto exit;
@@ -1109,7 +1109,7 @@ int mi_disp_panel_ddic_send_cmd(struct LCM_setting_table *table,
 		return ret;
 	}
 
-	if (count == 0 || count > 25) {
+	if (count == 0 || count > MAX_TX_CMD_NUM) {
 		pr_err("cmd count invalid, value:%d \n", count);
 		return ret;
 	}
@@ -1120,7 +1120,7 @@ int mi_disp_panel_ddic_send_cmd(struct LCM_setting_table *table,
 
 	cmd_msg.flags = (lp_mode == true)? MIPI_DSI_MSG_USE_LPM: 1;
 
-	pr_info("%s wait_te:%d, block: %d, lp_mode: %d, conut:%d\n",
+	pr_info("%s wait_te:%d, block: %d, lp_mode: %d, conut:%d",
 		__func__, wait_te_send, block, lp_mode, count);
 	for (i = 0;i < count; i++) {
 		memset(temp[i], 0, sizeof(temp[i]));
@@ -1428,6 +1428,7 @@ int mi_dsi_panel_set_disp_param(struct mtk_dsi *dsi, struct disp_feature_ctl *ct
 	comp = &dsi->ddp_comp;
 	panel_ext = mtk_dsi_get_panel_ext(comp);
 	panel = dsi->panel;
+	mi_cfg = &dsi->mi_cfg;
 
 	DISP_UTC_INFO("panel feature: %s, value: %d\n",
 		get_disp_feature_id_name(ctl->feature_id), ctl->feature_val);
@@ -1436,7 +1437,6 @@ int mi_dsi_panel_set_disp_param(struct mtk_dsi *dsi, struct disp_feature_ctl *ct
 		pr_info("panel_ext func not defined\n");
 		return 0;
 	}
-	mi_cfg = &dsi->mi_cfg;
 
 	if (!dsi_panel_initialized(dsi)){
 		if (DISP_FEATURE_DBI == ctl->feature_id
@@ -1516,6 +1516,12 @@ int mi_dsi_panel_set_disp_param(struct mtk_dsi *dsi, struct disp_feature_ctl *ct
 			if (private)
 				mutex_lock(&private->commit.lock);
 			mtk_drm_idlemgr_kick(__func__, dsi->encoder.crtc, 0);
+			if (!dsi->output_en) {
+				DISP_ERROR("doze brightness%d setting on dsi disabled\n", ctl->feature_val);
+				if (private)
+					mutex_unlock(&private->commit.lock);
+				break;
+			}
 			if (ctl->feature_val == DOZE_TO_NORMAL && mi_cfg->feature_val[DISP_FEATURE_DOZE_BRIGHTNESS] != DOZE_TO_NORMAL) {
 				panel_ext->funcs->doze_disable(dsi->panel, dsi, mipi_dsi_dcs_write_gce2, NULL);
 			} else if (ctl->feature_val != DOZE_TO_NORMAL && mi_cfg->feature_val[DISP_FEATURE_DOZE_BRIGHTNESS] == DOZE_TO_NORMAL) {

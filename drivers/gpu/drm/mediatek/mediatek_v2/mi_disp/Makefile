@@ -29,6 +29,10 @@ ifeq ($(CONFIG_MI_DISP_NOTIFIER), y)
 mediatek-drm-y += mi_disp/mi_disp_notifier.o
 endif
 
+ifeq ($(CONFIG_MI_HWCONF_MANAGER), y)
+mediatek-drm-y += mi_disp/mi_hwconf_manager.o
+endif
+
 ifeq ($(CONFIG_MI_DISP_LOG), y)
 mediatek-drm-y += mi_disp/mi_disp_log.o
 endif

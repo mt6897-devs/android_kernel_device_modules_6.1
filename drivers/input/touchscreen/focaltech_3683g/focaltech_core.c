@@ -2010,6 +2010,17 @@ int fts_drm_state_change_callback(struct notifier_block *self,
 	return 0;
 }
 
+static void fts_update_gesture_state(struct fts_ts_data *ts_data, int bit, bool enable)
+{
+	mutex_lock(&ts_data->input_dev->mutex);
+	if (enable)
+		ts_data->gesture_status |= 1 << bit;
+	else
+		ts_data->gesture_status &= ~(1 << bit);
+	FTS_INFO("gesture state:0x%02X", ts_data->gesture_status);
+	mutex_unlock(&ts_data->input_dev->mutex);
+}
+
 static int fts_get_mode_value(int mode, int value_type)
 {
 	int value = -1;
@@ -2033,6 +2044,15 @@ static int fts_set_cur_value(int mode, int value)
 	if (mode >= Touch_Mode_NUM) {
 		FTS_ERROR("mode is error:%d", mode);
 		return -EINVAL;
+	}
+
+	if (mode == Touch_Doubletap_Mode && value >= 0) {
+		fts_update_gesture_state(fts_data, GESTURE_DOUBLETAP, value != 0 ? true : false);
+		return 0;
+	}
+	if (mode == Touch_Singletap_Gesture && value >= 0) {
+		fts_update_gesture_state(fts_data, GESTURE_SINGLETAP, value != 0 ? true : false);
+		return 0;
 	}
 
 	xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] = value;

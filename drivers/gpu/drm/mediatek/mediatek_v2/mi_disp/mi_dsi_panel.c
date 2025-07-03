@@ -1501,7 +1501,7 @@ int mi_dsi_panel_set_disp_param(struct mtk_dsi *dsi, struct disp_feature_ctl *ct
 		break;
 	case DISP_FEATURE_DOZE_BRIGHTNESS:
 		DISP_INFO("DOZE BRIGHTNESS:%d\n", ctl->feature_val);
-#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO)
+#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO) || IS_ENABLED(CONFIG_DRM_PANEL_N11A_41_02_0B_DSC_VDO)
 		if (is_support_doze_brightness(ctl->feature_val)) {
 			panel_ext->funcs->set_doze_brightness(dsi->panel, ctl->feature_val);
 			mi_cfg->feature_val[DISP_FEATURE_DOZE_BRIGHTNESS] = ctl->feature_val;

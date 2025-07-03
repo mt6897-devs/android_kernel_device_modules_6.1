@@ -135,6 +135,7 @@ mgk_64_k61_device_modules = [
     "drivers/gpu/drm/panel/panel-truly-nt35595-cmd.ko",
     "drivers/gpu/drm/panel/panel-truly-td4330-cmd.ko",
     "drivers/gpu/drm/panel/panel-truly-td4330-vdo.ko",
+    "drivers/gpu/drm/panel/panel-n11a-41-02-0b-dsc-vdo.ko",
     "drivers/gpu/drm/panel/panel-n11a-42-02-0a-dsc-vdo.ko",
     "drivers/gpu/drm/panel/panel-himax-hx83121a-vdo.ko",
     "drivers/gpu/mediatek/ged/ged.ko",

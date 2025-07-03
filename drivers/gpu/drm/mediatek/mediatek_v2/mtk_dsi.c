@@ -3612,7 +3612,7 @@ static void mtk_output_dsi_disable(struct mtk_dsi *dsi, struct cmdq_pkt *cmdq_ha
 		goto SKIP_WAIT_FRAME_DONE;
 	}
 
-#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO)
+#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO) || IS_ENABLED(CONFIG_DRM_PANEL_N11A_41_02_0B_DSC_VDO)
 	if (!mtk_dsi_is_cmd_mode(&dsi->ddp_comp) && dsi->panel) {
 		if ((!new_doze_state && !skip_panel_switch) || force_lcm_update) {
 			if (drm_panel_unprepare(dsi->panel)) {
@@ -5628,7 +5628,7 @@ static void mtk_dsi_vm_cmdq(struct mtk_dsi *dsi,
 	u32 reg_val;
 
 	config = (msg->tx_len > 2) ? VM_LONG_PACKET : 0;
-#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO)
+#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO) || IS_ENABLED(CONFIG_DRM_PANEL_N11A_41_02_0B_DSC_VDO)
 	config |= BTA;
 #endif
 	if (msg->tx_len > 2) {
@@ -9273,7 +9273,7 @@ static void mtk_dsi_vdo_timing_change(struct mtk_dsi *dsi,
 	} else if (fps_chg_index & MODE_DSI_HFP) {
 		DDPINFO("%s, change HFP\n", __func__);
 
-#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO)
+#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO) || IS_ENABLED(CONFIG_DRM_PANEL_N11A_41_02_0B_DSC_VDO)
 		if (dsi->ext && dsi->ext->params &&
 			dsi->ext->params->prefetch_time) {
 			cmdq_pkt_clear_event(handle,
@@ -9309,7 +9309,7 @@ static void mtk_dsi_vdo_timing_change(struct mtk_dsi *dsi,
 				adjusted_mode.hdisplay;
 		dsi->vm.hfront_porch = hfp;
 
-#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO)
+#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO) || IS_ENABLED(CONFIG_DRM_PANEL_N11A_41_02_0B_DSC_VDO)
 		if (dsi->mipi_hopping_sta && dsi->ext->params->dyn.vfp) {
 			DDPINFO("%s,mipi_clk_change_sta\n", __func__);
 			vfp = dsi->ext->params->dyn.vfp;
@@ -9340,7 +9340,7 @@ static void mtk_dsi_vdo_timing_change(struct mtk_dsi *dsi,
 		/*1.3 send cmd: trigger*/
 		mtk_disp_mutex_trigger(comp->mtk_crtc->mutex[0], handle);
 
-#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO)
+#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO) || IS_ENABLED(CONFIG_DRM_PANEL_N11A_41_02_0B_DSC_VDO)
 		if (dsi->ext && dsi->ext->params &&
 			dsi->ext->params->prefetch_time) {
 			/* enable DSI pre-fetch */
@@ -9356,7 +9356,7 @@ static void mtk_dsi_vdo_timing_change(struct mtk_dsi *dsi,
 		cmdq_pkt_wait_no_clear(handle,
 			mtk_crtc->gce_obj.event[EVENT_CMD_EOF]);
 		comp = mtk_ddp_comp_request_output(mtk_crtc);
-#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO)
+#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO) || IS_ENABLED(CONFIG_DRM_PANEL_N11A_41_02_0B_DSC_VDO)
 		cmdq_pkt_clear_event(handle, mtk_crtc->gce_obj.event[EVENT_DSI_SOF]);
 #endif
 
@@ -9401,7 +9401,7 @@ static void mtk_dsi_vdo_timing_change(struct mtk_dsi *dsi,
 		}
 
 		/* send cmd: send cmd*/
-#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO)
+#if IS_ENABLED(CONFIG_DRM_PANEL_N11A_42_02_0A_DSC_VDO) || IS_ENABLED(CONFIG_DRM_PANEL_N11A_41_02_0B_DSC_VDO)
 		mtk_dsi_send_switch_cmd_vm(dsi, handle, mtk_crtc, src_mode,
 					drm_mode_vrefresh(&adjusted_mode));
 		cmdq_pkt_wait_no_clear(handle, mtk_crtc->gce_obj.event[EVENT_DSI_SOF]);

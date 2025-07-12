@@ -647,6 +647,8 @@
 #define SENSOR_DRVNAME_DUCHAMPSC202PCSMACRO_MIPI_RAW  "duchampsc202pcsmacro_mipi_raw"
 #define DUCHAMPOV08D10ULTRA_SENSOR_ID               0x5608
 #define SENSOR_DRVNAME_DUCHAMPOV08D10ULTRA_MIPI_RAW "duchampov08d10ultra_mipi_raw"
+#define DUCHAMPGC16B3FRONT_SENSOR_ID                  0x16B3
+#define SENSOR_DRVNAME_DUCHAMPGC16B3FRONT_MIPI_RAW   "duchampgc16b3front_mipi_raw"
 /*XIAOMI ADD END*/
 
 /******************************************************************************

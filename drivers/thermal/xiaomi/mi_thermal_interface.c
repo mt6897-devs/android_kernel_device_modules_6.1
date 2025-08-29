@@ -77,7 +77,13 @@ static atomic_t temp_state = ATOMIC_INIT(0);
 static atomic_t switch_mode = ATOMIC_INIT(-1);
 static atomic_t balance_mode = ATOMIC_INIT(0);
 static atomic_t modem_limit = ATOMIC_INIT(0);
+static atomic_t poor_modem_limit = ATOMIC_INIT(0);
+static atomic_t modem_level = ATOMIC_INIT(0);
+static atomic_t temp_aware = ATOMIC_INIT(10);
 static atomic_t market_download_limit = ATOMIC_INIT(0);
+static atomic_t flash_state = ATOMIC_INIT(0);
+static atomic_t wifi_limit = ATOMIC_INIT(0);
+static atomic_t thermal_max_brightness = ATOMIC_INIT(0);
 static char boost_buf[128];
 const char *board_sensor;
 static char board_sensor_temp[128];
@@ -240,6 +246,41 @@ static ssize_t thermal_temp_state_store(struct device *dev,
 static DEVICE_ATTR(temp_state, 0664, thermal_temp_state_show,
 		   thermal_temp_state_store);
 
+#ifdef CONFIG_MI_THERMAL_TZMODE
+static int tzdriver_current_mode = 1;
+#define GAME_MODE 0x0
+#define NON_GAME_MODE 0x01
+static ssize_t tzdriver_current_mode_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t len)
+{
+	int retVal = 0;
+	int value;
+
+	value = simple_strtol(buf, NULL, 10);
+
+	if ((value != GAME_MODE) && (value != NON_GAME_MODE))
+		return len;
+
+	retVal = teei_switch_current_mode(value);
+
+	if (retVal == 0)
+		tzdriver_current_mode = value;
+
+	return len;
+}
+
+static ssize_t tzdriver_current_mode_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", tzdriver_current_mode);
+}
+
+static DEVICE_ATTR(tzdriver_current_mode, 0664, tzdriver_current_mode_show,
+		   tzdriver_current_mode_store);
+#endif
+
 static ssize_t cpu_limits_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -264,8 +305,25 @@ static ssize_t cpu_limits_store(struct device *dev,
 }
 
 static DEVICE_ATTR(cpu_limits, 0664, cpu_limits_show, cpu_limits_store);
+static ssize_t thermal_max_brightness_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			atomic_read(&thermal_max_brightness));
+}
+static ssize_t thermal_max_brightness_store(struct device *dev,
+					    struct device_attribute *attr,
+					    const char *buf, size_t len)
+{
+	int val = -1;
+	val = simple_strtol(buf, NULL, 10);
+	atomic_set(&thermal_max_brightness, val);
+	return len;
+}
+static DEVICE_ATTR(thermal_max_brightness, 0664, thermal_max_brightness_show,
+		   thermal_max_brightness_store);
 
-#if IS_ENABLED(CONFIG_MI_DISP_NOTIFIER)
 static ssize_t thermal_screen_state_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
@@ -274,7 +332,7 @@ static ssize_t thermal_screen_state_show(struct device *dev,
 }
 
 static DEVICE_ATTR(screen_state, 0664, thermal_screen_state_show, NULL);
-#endif
+
 static ssize_t thermal_sconfig_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -349,6 +407,48 @@ thermal_market_download_limit_store(struct device *dev,
 	atomic_set(&market_download_limit, val);
 	return len;
 }
+
+static ssize_t thermal_wifi_limit_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&wifi_limit));
+}
+static ssize_t thermal_wifi_limit_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len)
+{
+	int val = -1;
+
+	val = simple_strtol(buf, NULL, 10);
+
+	atomic_set(&wifi_limit, val);
+	return len;
+}
+
+static DEVICE_ATTR(wifi_limit, 0664, thermal_wifi_limit_show,
+		   thermal_wifi_limit_store);
+
+static ssize_t thermal_flash_state_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&flash_state));
+}
+static ssize_t thermal_flash_state_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t len)
+{
+	int val = -1;
+
+	val = simple_strtol(buf, NULL, 10);
+
+	atomic_set(&flash_state, val);
+	return len;
+}
+
+static DEVICE_ATTR(flash_state, 0664, thermal_flash_state_show,
+		   thermal_flash_state_store);
+
 static DEVICE_ATTR(boost, 0644, thermal_boost_show, thermal_boost_store);
 
 static DEVICE_ATTR(sconfig, 0664, thermal_sconfig_show, thermal_sconfig_store);
@@ -411,6 +511,70 @@ static ssize_t thermal_modem_limit_store(struct device *dev,
 
 static DEVICE_ATTR(modem_limit, 0664, thermal_modem_limit_show,
 		   thermal_modem_limit_store);
+
+static ssize_t thermal_poor_modem_limit_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&poor_modem_limit));
+}
+static ssize_t thermal_poor_modem_limit_store(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t len)
+{
+	int val = -1;
+
+	val = simple_strtol(buf, NULL, 10);
+
+	atomic_set(&poor_modem_limit, val);
+	return len;
+}
+
+static DEVICE_ATTR(poor_modem_limit, 0664, thermal_poor_modem_limit_show,
+		   thermal_poor_modem_limit_store);
+
+static ssize_t thermal_modem_level_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&modem_level));
+}
+static ssize_t thermal_modem_level_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t len)
+{
+	int val = -1;
+
+	val = simple_strtol(buf, NULL, 10);
+
+	atomic_set(&modem_level, val);
+	return len;
+}
+
+static DEVICE_ATTR(modem_level, 0664, thermal_modem_level_show,
+		   thermal_modem_level_store);
+
+static ssize_t thermal_temp_aware_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&temp_aware));
+}
+
+static ssize_t thermal_temp_aware_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len)
+{
+	int val = -1;
+
+	val = simple_strtol(buf, NULL, 10);
+
+	atomic_set(&temp_aware, val);
+
+	return len;
+}
+
+static DEVICE_ATTR(temp_aware, 0664, thermal_temp_aware_show,
+		   thermal_temp_aware_store);
 
 #ifdef CONFIG_MI_THERMAL_ATC_ENABLE
 static ssize_t thermal_atc_enable_show(struct device *dev,
@@ -515,15 +679,22 @@ static struct attribute *mi_thermal_dev_attr_group[] = {
 	&dev_attr_temp_state.attr,
 	&dev_attr_cpu_limits.attr,
 	&dev_attr_sconfig.attr,
-#if IS_ENABLED(CONFIG_MI_DISP_NOTIFIER)
 	&dev_attr_screen_state.attr,
-#endif
 	&dev_attr_boost.attr,
 	&dev_attr_board_sensor.attr,
 	&dev_attr_board_sensor_temp.attr,
 	&dev_attr_balance_mode.attr,
 	&dev_attr_modem_limit.attr,
+	&dev_attr_poor_modem_limit.attr,
+	&dev_attr_modem_level.attr,
+	&dev_attr_temp_aware.attr,
 	&dev_attr_market_download_limit.attr,
+	&dev_attr_wifi_limit.attr,
+	&dev_attr_thermal_max_brightness.attr,
+	&dev_attr_flash_state.attr,
+#ifdef CONFIG_MI_THERMAL_TZMODE
+	&dev_attr_tzdriver_current_mode.attr,
+#endif
 #ifdef CONFIG_MI_THERMAL_ATC_ENABLE
 	&dev_attr_atc_enable.attr,
 #endif

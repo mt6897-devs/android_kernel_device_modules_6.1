@@ -2015,13 +2015,13 @@ exit:
 	return ret;
 }
 
-#define GOODIX_HIGH_RATE_CMD 0xC0
+#define GOODIX_HIGH_RATE_CMD 0xC1
 static int brl_switch_report_rate(struct goodix_ts_core *cd, bool on)
 {
 	struct goodix_ts_cmd cmd;
 
 	cmd.cmd = GOODIX_HIGH_RATE_CMD;
-	cmd.len = 5;
+	cmd.len = 6;
 	cmd.data[0] = (on == true) ? 1 : 0;
 	if (cd->hw_ops->send_cmd(cd, &cmd)) {
 		ts_err("failed send report rate cmd, on = %d", on);

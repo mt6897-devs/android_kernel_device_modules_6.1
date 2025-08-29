@@ -2378,7 +2378,8 @@ int fts_drm_state_change_callback(struct notifier_block *self,
 		blank = *(int *)(evdata->data);
 		FTS_INFO("notifier tp event:%lu, code:%d.", event, blank);
 		flush_workqueue(core_data->ts_workqueue);
-		if (event == MI_DISP_DPMS_EARLY_EVENT &&
+		if ((event == MI_DISP_DPMS_EARLY_EVENT ||
+		     event == MI_DISP_DPMS_EVENT) &&
 		    (blank == MI_DISP_DPMS_POWERDOWN ||
 		     blank == MI_DISP_DPMS_LP1 || blank == MI_DISP_DPMS_LP2)) {
 			FTS_INFO("touchpanel suspend by %s",

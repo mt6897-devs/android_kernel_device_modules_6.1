@@ -273,7 +273,7 @@ int brl_suspend(struct goodix_ts_core *cd)
 	return 0;
 }
 
-#define GOODIX_HIGH_RATE_CMD 0xC0
+#define GOODIX_HIGH_RATE_CMD 0xC1
 static int brl_switch_report_rate(struct goodix_ts_core *cd, bool high)
 {
 	struct goodix_ts_cmd cmd;

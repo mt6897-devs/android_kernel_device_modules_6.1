@@ -1996,6 +1996,10 @@ static int fts_ts_resume(struct device *dev)
         fts_irq_enable();
     }
 
+    if (ts_data->high_report_rate) {
+        fts_switch_report_rate(ts_data, ts_data->high_report_rate);
+    }
+
     notify_oneshot_sensor(ONESHOT_SENSOR_FOD_PRESS, 0);
 
     FTS_FUNC_EXIT();
@@ -2074,6 +2078,23 @@ int fts_check_ts_id_gpio(struct device *dev)
     return -ENODEV;
 }
 
+#define FTS_HIGH_RATE_CMD	0xC3
+int fts_switch_report_rate(struct fts_ts_data *ts_data, bool enable)
+{
+	int ret = 0;
+
+	ret = fts_write_reg(FTS_HIGH_RATE_CMD, (enable == true) ? 1 : 0);
+	if (ret < 0) {
+		FTS_ERROR("failed send report rate cmd, on = %d", enable);
+		return -EINVAL;
+	} else {
+		ts_data->high_report_rate = enable;
+		FTS_INFO("reprot rate switch: %s", (enable == true) ? "480HZ" : "240HZ");
+	}
+
+	return 0;
+}
+
 static void fts_update_gesture_state(struct fts_ts_data *ts_data, int bit, bool enable)
 {
 	mutex_lock(&ts_data->input_dev->mutex);
@@ -2116,6 +2137,9 @@ static int fts_set_cur_value(void *private, enum touch_mode mode, int value)
 		break;
 	case TOUCH_MODE_FOD_PRESS_GESTURE:
 		fts_update_gesture_state(fts_data, GESTURE_FOD, value != 0 ? true : false);
+		break;
+	case TOUCH_MODE_REPORT_RATE:
+		fts_switch_report_rate(fts_data, value != 0 ? true : false);
 		break;
 	default:
 		FTS_ERROR("handler got mode %d with value %d, not implemented",

@@ -72,10 +72,6 @@
 #define GESTURE_Z                               0x41
 #define GESTURE_C                               0x34
 
-#define GESTURE_DOUBLETAP_EN   (1 << GESTURE_DOUBLETAP)
-#define GESTURE_SINGLETAP_EN   (1 << GESTURE_SINGLETAP)
-#define GESTURE_FOD_EN         (1 << GESTURE_FOD)
-
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
 *****************************************************************************/
@@ -292,15 +288,15 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 
     FTS_DEBUG("gesture_id:0x%x", gesture_id);
     if (gesture_id == GESTURE_SINGLECLICK) {
-        notify_gesture_single_tap();
+        notify_oneshot_sensor(ONESHOT_SENSOR_SINGLE_TAP, 1);
         FTS_DEBUG("gesture click");
     }
     if (gesture_id == GESTURE_DOUBLECLICK) {
-        notify_gesture_double_tap();
+        notify_oneshot_sensor(ONESHOT_SENSOR_DOUBLE_TAP, 1);
         FTS_DEBUG("gesture double click");
     }
     if (gesture_id == GESTURE_FODPRESS) {
-        update_fod_press_status(1);
+        notify_oneshot_sensor(ONESHOT_SENSOR_FOD_PRESS, 1);
         FTS_DEBUG("gesture fod press");
     }
     switch (gesture_id) {

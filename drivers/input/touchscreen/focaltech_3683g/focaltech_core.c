@@ -45,7 +45,6 @@
 #endif
 
 #include "focaltech_core.h"
-#include "../xiaomi/xiaomi_touch.h"
 
 /*****************************************************************************
 * Private constant and macro definitions using #define
@@ -67,8 +66,6 @@ static int fts_fod_recovery(struct fts_ts_data *ts_data);
 /*****************************************************************************
 * Static function prototypes
 *****************************************************************************/
-static struct xiaomi_touch_interface xiaomi_touch_interfaces;
-
 void fts_msleep(unsigned long msecs)
 {
     if (msecs > 20) {
@@ -666,7 +663,7 @@ static int fts_input_report_b(struct fts_ts_data *ts_data, struct ts_event *even
         if (ts_data->touch_points && (ts_data->log_level >= 1))
             FTS_DEBUG("[B]Points All Up!");
         input_report_key(input_dev, BTN_TOUCH, 0);
-        update_fod_press_status(0);
+        notify_oneshot_sensor(ONESHOT_SENSOR_FOD_PRESS, 0);
     }
 
     ts_data->touch_points = touch_down_point_cur;
@@ -1996,7 +1993,7 @@ static int fts_ts_resume(struct device *dev)
         fts_irq_enable();
     }
 
-    update_fod_press_status(0);
+    notify_oneshot_sensor(ONESHOT_SENSOR_FOD_PRESS, 0);
 
     FTS_FUNC_EXIT();
     return 0;
@@ -2058,100 +2055,59 @@ static void fts_update_gesture_state(struct fts_ts_data *ts_data, int bit, bool 
 	mutex_unlock(&ts_data->input_dev->mutex);
 }
 
-static int fts_get_mode_value(int mode, int value_type)
+static int fts_get_mode_value(void *private, enum touch_mode mode)
 {
-	int value = -1;
-	if (mode < Touch_Mode_NUM && mode >= 0) {
-		value = xiaomi_touch_interfaces.touch_mode[mode][value_type];
-		FTS_INFO("mode:%d, value_type:%d, value:%d", mode, value_type,
-			 value);
-	} else
-		FTS_ERROR("mode:%d don't support");
-	return value;
+    struct fts_ts_data *fts_data = private;
+
+    switch (mode) {
+    case TOUCH_MODE_DOUBLETAP_GESTURE:
+        return (fts_data->gesture_status & GESTURE_DOUBLETAP_EN) ? 1 : 0;
+    case TOUCH_MODE_SINGLETAP_GESTURE:
+        return (fts_data->gesture_status & GESTURE_SINGLETAP_EN) ? 1 : 0;
+    case TOUCH_MODE_FOD_PRESS_GESTURE:
+        return (fts_data->gesture_status & GESTURE_FOD_EN) ? 1 : 0;
+    default:
+        return -EINVAL;
+    }
+
 }
 
-static int fts_set_cur_value(int mode, int value)
+static int fts_set_cur_value(void *private, enum touch_mode mode, int value)
 {
-	if (!fts_data || mode < 0) {
-		FTS_ERROR(
-			"Error, fts_data is NULL or the parameter is incorrect");
-		return -1;
-	}
-	FTS_INFO("touch mode:%d, value:%d", mode, value);
-	if (mode >= Touch_Mode_NUM) {
-		FTS_ERROR("mode is error:%d", mode);
+	struct fts_ts_data *fts_data = private;
+
+	FTS_INFO("set mode: %d, value: %d", mode, value);
+	switch (mode) {
+	case TOUCH_MODE_DOUBLETAP_GESTURE:
+		fts_update_gesture_state(fts_data, GESTURE_DOUBLETAP, value != 0 ? true : false);
+		break;
+	case TOUCH_MODE_SINGLETAP_GESTURE:
+		fts_update_gesture_state(fts_data, GESTURE_SINGLETAP, value != 0 ? true : false);
+		break;
+	case TOUCH_MODE_FOD_PRESS_GESTURE:
+		fts_update_gesture_state(fts_data, GESTURE_FOD, value != 0 ? true : false);
+		break;
+	default:
+		FTS_ERROR("handler got mode %d with value %d, not implemented",
+			 mode, value);
 		return -EINVAL;
 	}
-
-	if (mode == Touch_Doubletap_Mode && value >= 0) {
-		fts_update_gesture_state(fts_data, GESTURE_DOUBLETAP, value != 0 ? true : false);
-		return 0;
-	}
-	if (mode == Touch_Singletap_Gesture && value >= 0) {
-		fts_update_gesture_state(fts_data, GESTURE_SINGLETAP, value != 0 ? true : false);
-		return 0;
-	}
-	if (mode == Touch_Fod_Enable && value >= 0) {
-		fts_update_gesture_state(fts_data, GESTURE_FOD, value != 0 ? true : false);
-		return 0;
-	}
-	if (mode == THP_FOD_DOWNUP_CTL && value >= 0) {
-		update_fod_press_status(value != 0);
-		return 0;
-	}
-
-	xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] = value;
-	if (xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] >
-	    xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE]) {
-		xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE];
-	} else if (xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] <
-		   xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE]) {
-		xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE];
-	}
 	return 0;
-}
-
-static int fts_get_mode_all(int mode, int *value)
-{
-	if (mode < Touch_Mode_NUM && mode >= 0) {
-		value[0] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_CUR_VALUE];
-		value[1] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_DEF_VALUE];
-		value[2] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE];
-		value[3] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE];
-	} else {
-		FTS_ERROR("mode:%d don't support", mode);
-	}
-	FTS_INFO("mode:%d, value:%d:%d:%d:%d", mode, value[0], value[1],
-		 value[2], value[3]);
-	return 0;
-}
-
-static void fts_init_touchmode_data(struct fts_ts_data *ts_data)
-{
-	FTS_INFO("touchfeature value init done");
 }
 
 static void fts_init_xiaomi_touchfeature(struct fts_ts_data *ts_data)
 {
 	mutex_init(&ts_data->cmd_update_mutex);
-	memset(&xiaomi_touch_interfaces, 0x00,
-	       sizeof(struct xiaomi_touch_interface));
 
-	xiaomi_touch_interfaces.getModeValue = fts_get_mode_value;
-	xiaomi_touch_interfaces.setModeValue = fts_set_cur_value;
-	xiaomi_touch_interfaces.getModeAll = fts_get_mode_all;
-	fts_init_touchmode_data(ts_data);
+	ts_data->xiaomi_touch.set_mode_value = fts_set_cur_value;
+	ts_data->xiaomi_touch.get_mode_value = fts_get_mode_value;
+	ts_data->xiaomi_touch.private = ts_data;
+	FTS_INFO("touchfeature value init done");
 
 	ts_data->gesture_support = 1;
 	ts_data->fod_status = -1;
 
-	xiaomitouch_register_modedata(0, &xiaomi_touch_interfaces);
+	register_xiaomi_touch_client(TOUCH_ID_PRIMARY, &ts_data->xiaomi_touch);
 }
 
 int fts_ts_probe_entry(struct fts_ts_data *ts_data)
@@ -2376,6 +2332,7 @@ int fts_ts_remove_entry(struct fts_ts_data *ts_data)
     input_unregister_device(ts_data->pen_dev);
 #endif
     mi_disp_unregister_client(&ts_data->disp_notifier);
+    unregister_xiaomi_touch_client(TOUCH_ID_PRIMARY);
     if (ts_data->ts_workqueue) destroy_workqueue(ts_data->ts_workqueue);
     if (gpio_is_valid(ts_data->pdata->reset_gpio))
         gpio_free(ts_data->pdata->reset_gpio);

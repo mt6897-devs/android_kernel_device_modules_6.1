@@ -70,6 +70,8 @@
 #endif
 #include "focaltech_common.h"
 
+#include "../xiaomi/xiaomi_touch.h"
+
 /*****************************************************************************
 * Private constant and macro definitions using #define
 *****************************************************************************/
@@ -158,6 +160,11 @@
 
 /* If need read customer info when probing, max:FTS_MAX_CUSTOMER_INFO */
 #define FTS_READ_CUSTOMER_INFO              0
+
+/* Gesture enable bits */
+#define GESTURE_DOUBLETAP_EN   (1 << GESTURE_DOUBLETAP)
+#define GESTURE_SINGLETAP_EN   (1 << GESTURE_SINGLETAP)
+#define GESTURE_FOD_EN         (1 << GESTURE_FOD)
 
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
@@ -312,6 +319,7 @@ struct fts_ts_data {
     struct mutex cmd_update_mutex;
     int fod_status;
     u8 gesture_status;
+    struct xiaomi_touch_interface xiaomi_touch;
 };
 
 enum GESTURE_MODE_TYPE {

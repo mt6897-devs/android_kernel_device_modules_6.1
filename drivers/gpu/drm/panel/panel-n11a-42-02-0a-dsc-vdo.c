@@ -1149,7 +1149,7 @@ static int panel_set_doze_brightness(struct drm_panel *panel, int doze_brightnes
 	int ret = 0;
 	struct lcm *ctx;
 	unsigned int format = 0;
-	char bl_tb0[] = {0x51, 0x00, 0x08};
+	struct LCM_setting_table bl_tb0[] = { { 0x51, 2, { 0x00, 0x08 } } };
 
 	if (!panel) {
 		pr_err("invalid params\n");
@@ -1169,11 +1169,7 @@ static int panel_set_doze_brightness(struct drm_panel *panel, int doze_brightnes
 	}
 
 	if (DOZE_TO_NORMAL == doze_brightness) {
-		pr_info("%s lcm_aod_exit_bl: 0x%02X 0x%02X\n", __func__, bl_tb0[1], bl_tb0[2]);
-		mutex_lock(&ctx->panel_lock);
-		lcm_dcs_write(ctx, bl_tb0, ARRAY_SIZE(bl_tb0));
-		mutex_unlock(&ctx->panel_lock);
-		//ret = mi_disp_panel_ddic_send_cmd(lcm_aod_mode_exit, ARRAY_SIZE(lcm_aod_mode_exit), format);
+		ret = mi_disp_panel_ddic_send_cmd(bl_tb0, ARRAY_SIZE(bl_tb0), format);
 		atomic_set(&doze_enable, 0);
 	}
 

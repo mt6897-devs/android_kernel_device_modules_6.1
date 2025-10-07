@@ -4365,7 +4365,7 @@ static void mtk_ovl_wcg_enable(struct drm_mtk_layering_info *disp_info,
 	mtk_drm_helper_set_opt_by_name(priv->helper_opt,
 					"MTK_DRM_OPT_OVL_WCG", enable);
 
-	pr_info("%s:%d enable:%d, curColorMode:%d, curDolbyStatus:%d\n",
+	pr_debug("%s:%d enable:%d, curColorMode:%d, curDolbyStatus:%d\n",
 			__func__, __LINE__, enable, curColorMode, curDolbyStatus);
 }
 #endif

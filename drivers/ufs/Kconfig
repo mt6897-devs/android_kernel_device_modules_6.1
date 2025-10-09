@@ -60,6 +60,7 @@ config SCSI_UFS_MEDIATEK_DBG
 	  If unsure, say N.
 
 source "$(KCONFIG_EXT_PREFIX)drivers/ufs/vendor/Kconfig"
+source "$(KCONFIG_EXT_PREFIX)drivers/ufs/vendor/xiaomi/Kconfig"
 
 config MTK_UFS_DEBUG
 	bool "Support Mediatek UFS upstreaming features"

@@ -11,6 +11,9 @@ ccflags-y += -I$(srctree)/drivers/scsi/
 ccflags-y += -I$(srctree)/kernel/
 ccflags-y += -I$(srctree)/block/
 
+# Xiaomi
+obj-$(CONFIG_SCSI_UFSHCD_XIAOMI)                += xiaomi/
+
 # must after -I$(DEVICE_MODULES_PATH)/drivers/ufs/
 obj-$(CONFIG_DEVICE_MODULES_SCSI_UFS_MEDIATEK)  += ufs-mediatek-mod.o
 ufs-mediatek-mod-y                              += ../ufs-mediatek.o ../ufs-mediatek-sysfs.o ../ufs-mediatek-mimic.o

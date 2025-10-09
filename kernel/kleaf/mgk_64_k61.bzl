@@ -530,6 +530,7 @@ mgk_64_k61_device_modules = [
     "drivers/ufs/ufs-mediatek-dbg.ko",
     "drivers/ufs/vendor/ufs-mediatek-mod.ko",
     "drivers/ufs/vendor/ufs-mediatek-mod-ise.ko",
+    "drivers/ufs/vendor/xiaomi/ufshcd_xiaomi-core.ko",
     "drivers/soc/mediatek/devapc/device-apc-common.ko",
     "drivers/soc/mediatek/mtk-dvfsrc.ko",
     "drivers/soc/mediatek/mtk-dvfsrc-start.ko",

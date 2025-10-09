@@ -5,6 +5,9 @@ ccflags-y += -I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/power_throttling/
 ccflags-y += -I$(DEVICE_MODULES_PATH)/drivers/ufs/vendor/
 ccflags-y += -I$(DEVICE_MODULES_PATH)/drivers/ufs/
 
+# Xiaomi
+obj-$(CONFIG_SCSI_UFSHCD_XIAOMI)                += xiaomi/
+
 # must after -I$(DEVICE_MODULES_PATH)/drivers/ufs/
 ccflags-y += -I$(srctree)/drivers/ufs/
 ccflags-y += -I$(srctree)/drivers/ufs/core/

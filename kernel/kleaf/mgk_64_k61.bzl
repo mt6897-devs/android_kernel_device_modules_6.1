@@ -347,7 +347,6 @@ mgk_64_k61_device_modules = [
     "drivers/misc/mediatek/power_throttling/pmic_lvsys_notify.ko",
     "drivers/misc/mediatek/pwm/mtk-pwm.ko",
     "drivers/misc/mediatek/qos/mtk_qos.ko",
-    "drivers/misc/mediatek/rps/rps_perf.ko",
     "drivers/misc/mediatek/scp/rv/scp.ko",
     "drivers/misc/mediatek/sda/btm/bus_tracer_interface.ko",
     "drivers/misc/mediatek/sda/btm/v1/bus_tracer_v1.ko",

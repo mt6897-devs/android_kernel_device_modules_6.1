@@ -1622,7 +1622,9 @@ static int vidioc_venc_s_fmt_cap(struct file *file, void *priv,
 	}
 
 	if (mtk_vcodec_is_state(ctx, MTK_STATE_FREE)) {
+#if IS_ENABLED(CONFIG_MTK_SCHED_FAST_LOAD_TRACKING)
 		mtk_vcodec_config_group_list();
+#endif
 		ret = venc_if_init(ctx, q_data->fmt->fourcc);
 		if (ret) {
 			mtk_v4l2_err("venc_if_init failed=%d, codec type=%x",

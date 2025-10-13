@@ -27,7 +27,9 @@
 #include "../mcupm/include/mcupm_driver.h"
 #include "../mcupm/include/mcupm_ipi_id.h"
 #include "cpufreq-dbg-lite.h"
+#if IS_ENABLED(CONFIG_MTK_CPUFREQ_SUGOV_EXT)
 #include "sugov/cpufreq.h"
+#endif
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -178,6 +180,7 @@ unsigned int cpufreq_get_cci_mode(void)
 	return mode;
 }
 
+#if IS_ENABLED(CONFIG_MTK_PERFORMANCE_MODULE)
 int cpufreq_set_cci_mode(unsigned int mode)
 {
 	if (mode > 1) {
@@ -192,15 +195,19 @@ int cpufreq_set_cci_mode(unsigned int mode)
 		return 0;
 	}
 
+#if IS_ENABLED(CONFIG_MTK_CPUFREQ_SUGOV_EXT)
 	if (user_ctrl_mode)
 		set_eas_dsu_ctrl(0);
 	else
 		set_eas_dsu_ctrl(1);
+#endif
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cpufreq_set_cci_mode);
+#endif
 
+#if IS_ENABLED(CONFIG_MTK_CPUFREQ_SUGOV_EXT)
 int set_dsu_ctrl_debug(unsigned int eas_ctrl_mode, bool debug_enable)
 {
 	dsu_ctrl_deubg_enable = debug_enable;
@@ -217,6 +224,7 @@ int set_dsu_ctrl_debug(unsigned int eas_ctrl_mode, bool debug_enable)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(set_dsu_ctrl_debug);
+#endif
 
 static int mtk_cpudvfs_init(void)
 {

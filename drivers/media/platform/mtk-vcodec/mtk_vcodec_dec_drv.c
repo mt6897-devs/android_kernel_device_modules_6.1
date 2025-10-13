@@ -660,7 +660,9 @@ static int mtk_vcodec_dec_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&dev->log_param_list);
 	INIT_LIST_HEAD(&dev->prop_param_list);
 	dev_ptr = dev;
+#if IS_ENABLED(CONFIG_MTK_SCHED_FAST_LOAD_TRACKING)
 	mtk_vcodec_init_group_list_lock();
+#endif
 
 	return 0;
 

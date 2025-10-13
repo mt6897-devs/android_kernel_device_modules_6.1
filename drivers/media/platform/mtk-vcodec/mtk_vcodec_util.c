@@ -23,7 +23,9 @@
 #include "mtk_vcodec_enc.h"
 #include "vdec_drv_if.h"
 #include "venc_drv_if.h"
+#if IS_ENABLED(CONFIG_MTK_SCHED_FAST_LOAD_TRACKING)
 #include "group.h"
+#endif
 
 #define LOG_PARAM_INFO_SIZE 64
 #define MAX_SUPPORTED_LOG_PARAMS_COUNT 12
@@ -35,9 +37,11 @@ char mtk_vdec_tmp_prop[LOG_PROPERTY_SIZE];
 char mtk_venc_tmp_prop[LOG_PROPERTY_SIZE];
 
 
+#if IS_ENABLED(CONFIG_MTK_SCHED_FAST_LOAD_TRACKING)
 static int group_list[VCODEC_MAX_GROUP_SIZE];
 static unsigned int group_list_size;
 static spinlock_t group_lock;
+#endif
 
 
 
@@ -1363,6 +1367,7 @@ void mtk_vcodec_get_log(struct mtk_vcodec_ctx *ctx, struct mtk_vcodec_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mtk_vcodec_get_log);
 
+#if IS_ENABLED(CONFIG_MTK_SCHED_FAST_LOAD_TRACKING)
 static void mtk_vcodec_add_list(struct task_struct *task)
 {
 	struct task_struct *task_child;
@@ -1436,6 +1441,7 @@ void mtk_vcodec_init_group_list_lock(void)
 
 }
 EXPORT_SYMBOL_GPL(mtk_vcodec_init_group_list_lock);
+#endif
 
 
 

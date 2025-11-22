@@ -161,16 +161,18 @@ ssize_t mi_disp_read(struct file *filp, char __user *buffer,
 					e->offset, copy_length)) {
 				if (ret == 0)
 					ret = -EFAULT;
-				goto put_back_event;
+				spin_lock_irq(&df->client_spinlock);
+				client->event_space -= length;
+				list_add(&e->link, &client->event_list);
+				spin_unlock_irq(&df->client_spinlock);
+				break;
 			}
 
 			ret += copy_length;
 			if (partial_read) {
 				e->offset += copy_length;
-put_back_event:
-				pr_debug("putting event back!");
 				spin_lock_irq(&df->client_spinlock);
-				client->event_space -= length;
+				client->event_space -= copy_length;
 				list_add(&e->link, &client->event_list);
 				spin_unlock_irq(&df->client_spinlock);
 				wake_up_interruptible(&client->event_wait);

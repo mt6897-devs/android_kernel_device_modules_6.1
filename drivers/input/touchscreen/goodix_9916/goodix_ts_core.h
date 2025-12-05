@@ -40,7 +40,6 @@
 #include <linux/notifier.h>
 #include <linux/fb.h>
 #endif
-#include "../xiaomi_touch/xiaomi_touch_common.h"
 
 //#define GOODIX_SPI_NAME                 "GOODIX-TS"
 #define GOODIX_CORE_DRIVER_NAME "goodix_ts"
@@ -53,6 +52,7 @@
 #define GOODIX_CFG_MAX_SIZE 4096
 #define GOODIX_MAX_STR_LABLE_LEN 32
 #define GOODIX_MAX_FRAMEDATA_LEN 2500
+#define GOODIX_GESTURE_DATA_LEN 16
 
 #define GOODIX_NORMAL_RESET_DELAY_MS 100
 #define GOODIX_HOLD_CPU_RESET_DELAY_MS 5
@@ -63,66 +63,15 @@
 
 #define TS_DEFAULT_FIRMWARE "goodix_firmware.bin"
 #define TS_DEFAULT_CFG_BIN "goodix_cfg_group.bin"
-#define GOODIX_LOCKDOWN_SIZE 8
-#define TS_LOCKDOWN_REG 0x10030
 
 #define FLASH_WRITE_MAX_LEN 4096
 #define FLASH_READ_MAX_LEN 4096
 
-#define GOODIX_XIAOMI_TOUCHFEATURE
-#define GOODIX_DEBUGFS_ENABLE
-/* #define CONFIG_TOUCH_BOOST */
-#define GRIP_PARAMETER_NUM 8
-/*#define GRIP_MODE_DEBUG*/
-#define SUPER_RESOLUTION
-
-#define GTP_RESULT_INVALID 0
-#define GTP_RESULT_FAIL 1
-#define GTP_RESULT_PASS 2
-#define CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI
-
-#define PANEL_ORIENTATION_DEGREE_0 0 /* normal portrait orientation */
-#define PANEL_ORIENTATION_DEGREE_90 1 /* anticlockwise 90 degrees */
-#define PANEL_ORIENTATION_DEGREE_180 2 /* anticlockwise 180 degrees */
-#define PANEL_ORIENTATION_DEGREE_270 3 /* anticlockwise 270 degrees */
-
-/* gamemode edge suppression params */
-
-/* deadzone suppression */
-#define GAME_DEAD_SUPPRESSION 7
-/* deadzone suppression end */
-
-/* edgezone suppression */
-/* for PANEL_ORIENTATION_DEGREE_0 & PANEL_ORIENTATION_DEGREE_180 */
-#define GAME_EDGE_SUPPRESSION_LONGSIDE_0_180 60
-#define GAME_EDGE_SUPPRESSION_SHORTSIDE_0_180 20
-/* for PANEL_ORIENTATION_DEGREE_90 & PANEL_ORIENTATION_DEGREE_270 */
-#define GAME_EDGE_SUPPRESSION_LONGSIDE_90_270 60
-#define GAME_EDGE_SUPPRESSION_SHORTSIDE_90_270 70
-/* edgezone suppression end */
-
-/* conrnerzone suppression */
-/* conrnerzone suppression case1 */
-/*横屏游戏*/
-#define GAME_CORNER_SUPPRESSION_NONE 0
-#define GAME_CORNER_SUPPRESSION_SMALL 150
-#define GAME_CORNER_SUPPRESSION_MEDIUM 280
-#define GAME_CORNER_SUPPRESSION_LARGE 400
-/*竖屏游戏*/
-#define VERTICAL_GAME_CORNER_SUPPRESSION_Y 400
-#define VERTICAL_GAME_CORNER_SUPPRESSION_X 250
-/* conrner suppression case2 */
-#define GAME_CORNER_SUPPRESSION_HOR 0
-#define GAME_CORNER_SUPPRESSION_VER 0
-/* conrnerzone suppression end */
-
-/*panel info*/
-#define PANEL_MAX_X 1219
-#define PANEL_MAX_Y 2711
-/*panel info end*/
-
-#define GAME_ARRAY_LEN 4
-#define GAME_ARRAY_SIZE 3
+enum GOODIX_GESTURE_TYP {
+	GESTURE_SINGLE_TAP = (1 << 0),
+	GESTURE_DOUBLE_TAP = (1 << 1),
+	GESTURE_FOD_PRESS = (1 << 2)
+};
 
 enum CORD_PROB_STA {
 	CORE_MODULE_UNPROBED = 0,
@@ -372,7 +321,6 @@ struct goodix_ts_board_data {
 	bool pen_enable;
 	char fw_name[GOODIX_MAX_STR_LABLE_LEN];
 	char cfg_bin_name[GOODIX_MAX_STR_LABLE_LEN];
-	u32 touch_expert_array[GAME_ARRAY_LEN * GAME_ARRAY_SIZE];
 };
 
 enum goodix_fw_update_mode {
@@ -384,33 +332,6 @@ enum goodix_fw_update_mode {
 	UPDATE_MODE_SRC_HEAD = (1 << 5), /* firmware file from head file */
 	UPDATE_MODE_SRC_REQUEST = (1 << 6), /* request firmware */
 	UPDATE_MODE_SRC_ARGS = (1 << 7), /* firmware data from function args */
-};
-
-#define GOODIX_GRIP_PARAMETERS_SIZE 32
-#define GOODIX_TOUCH_MODE_PARAMETERS_SIZE 5
-#define GOODIX_CORNERFILTER_AREA_STEP_SIZE 4
-#define GOODIX_DISPLAY_RESOLUTION_SIZE 2
-
-struct goodix_xiaomi_board_data {
-	unsigned int game_mode[GOODIX_TOUCH_MODE_PARAMETERS_SIZE];
-	unsigned int active_mode[GOODIX_TOUCH_MODE_PARAMETERS_SIZE];
-	unsigned int up_threshold[GOODIX_TOUCH_MODE_PARAMETERS_SIZE];
-	unsigned int tolerance[GOODIX_TOUCH_MODE_PARAMETERS_SIZE];
-	unsigned int edge_filter[GOODIX_TOUCH_MODE_PARAMETERS_SIZE];
-	unsigned int panel_orien[GOODIX_TOUCH_MODE_PARAMETERS_SIZE];
-	unsigned int report_rate[GOODIX_TOUCH_MODE_PARAMETERS_SIZE];
-	unsigned int cornerzone_filter_hor1[GOODIX_GRIP_PARAMETERS_SIZE];
-	unsigned int cornerzone_filter_hor2[GOODIX_GRIP_PARAMETERS_SIZE];
-	unsigned int cornerzone_filter_ver[GOODIX_GRIP_PARAMETERS_SIZE];
-	unsigned int deadzone_filter_hor[GOODIX_GRIP_PARAMETERS_SIZE];
-	unsigned int deadzone_filter_ver[GOODIX_GRIP_PARAMETERS_SIZE];
-	unsigned int edgezone_filter_hor[GOODIX_GRIP_PARAMETERS_SIZE];
-	unsigned int edgezone_filter_ver[GOODIX_GRIP_PARAMETERS_SIZE];
-	u8 deadzone_filter[4 * GRIP_PARAMETER_NUM];
-	u8 edgezone_filter[4 * GRIP_PARAMETER_NUM];
-	u8 cornerzone_filter[4 * GRIP_PARAMETER_NUM];
-	u8 cornerzonegame_filter[4 * GRIP_PARAMETER_NUM];
-	u32 check_sum;
 };
 
 #define MAX_CMD_DATA_LEN 10
@@ -426,78 +347,6 @@ struct goodix_ts_cmd {
 			u8 data[MAX_CMD_DATA_LEN];
 		};
 		u8 buf[MAX_CMD_BUF_LEN];
-	};
-};
-struct goodix_Edge_suppression {
-	union {
-		struct {
-			u8 Length[2];
-			u8 Top_DeadArea_MinX[2];
-			u8 Top_DeadArea_MinY[2];
-			u8 Top_DeadArea_MaxX[2];
-			u8 Top_DeadArea_MaxY[2];
-			u8 Bot_DeadArea_MinX[2];
-			u8 Bot_DeadArea_MinY[2];
-			u8 Bot_DeadArea_MaxX[2];
-			u8 Bot_DeadArea_MaxY[2];
-			u8 Left_DeadArea_MinX[2];
-			u8 Left_DeadArea_MinY[2];
-			u8 Left_DeadArea_MaxX[2];
-			u8 Left_DeadArea_MaxY[2];
-			u8 Right_DeadArea_MinX[2];
-			u8 Right_DeadArea_MinY[2];
-			u8 Right_DeadArea_MaxX[2];
-			u8 Right_DeadArea_MaxY[2];
-			u8 Top_ClickArea_MinX[2];
-			u8 Top_ClickArea_MinY[2];
-			u8 Top_ClickArea_MaxX[2];
-			u8 Top_ClickArea_MaxY[2];
-			u8 Bot_ClickArea_MinX[2];
-			u8 Bot_ClickArea_MinY[2];
-			u8 Bot_ClickArea_MaxX[2];
-			u8 Bot_ClickArea_MaxY[2];
-			u8 Left_ClickArea_MinX[2];
-			u8 Left_ClickArea_MinY[2];
-			u8 Left_ClickArea_MaxX[2];
-			u8 Left_ClickArea_MaxY[2];
-			u8 Right_ClickArea_MinX[2];
-			u8 Right_ClickArea_MinY[2];
-			u8 Right_ClickArea_MaxX[2];
-			u8 Right_ClickArea_MaxY[2];
-			u8 Top_CornerArea_MinX[2];
-			u8 Top_CornerArea_MinY[2];
-			u8 Top_CornerArea_MaxX[2];
-			u8 Top_CornerArea_MaxY[2];
-			u8 Bot_CornerArea_MinX[2];
-			u8 Bot_CornerArea_MinY[2];
-			u8 Bot_CornerArea_MaxX[2];
-			u8 Bot_CornerArea_MaxY[2];
-			u8 Left_CornerArea_MinX[2];
-			u8 Left_CornerArea_MinY[2];
-			u8 Left_CornerArea_MaxX[2];
-			u8 Left_CornerArea_MaxY[2];
-			u8 Right_CornerArea_MinX[2];
-			u8 Right_CornerArea_MinY[2];
-			u8 Right_CornerArea_MaxX[2];
-			u8 Right_CornerArea_MaxY[2];
-			u8 Top_GameCornerArea_MinX[2];
-			u8 Top_GameCornerArea_MinY[2];
-			u8 Top_GameCornerArea_MaxX[2];
-			u8 Top_GameCornerArea_MaxY[2];
-			u8 Bot_GameCornerArea_MinX[2];
-			u8 Bot_GameCornerArea_MinY[2];
-			u8 Bot_GameCornerArea_MaxX[2];
-			u8 Bot_GameCornerArea_MaxY[2];
-			u8 Left_GameCornerArea_MinX[2];
-			u8 Left_GameCornerArea_MinY[2];
-			u8 Left_GameCornerArea_MaxX[2];
-			u8 Left_GameCornerArea_MaxY[2];
-			u8 Right_GameCornerArea_MinX[2];
-			u8 Right_GameCornerArea_MinY[2];
-			u8 Right_GameCornerArea_MaxX[2];
-			u8 Right_GameCornerArea_MaxY[2];
-		};
-		u8 buf[130];
 	};
 };
 
@@ -580,10 +429,10 @@ struct goodix_pen_data {
  * @event_data: event data
  */
 struct goodix_ts_event {
-	int retry;
 	enum ts_event_type event_type;
 	u8 request_code; /* represent the request type */
 	u8 gesture_type;
+	u8 gesture_data[GOODIX_GESTURE_DATA_LEN];
 	struct goodix_touch_data touch_data;
 	struct goodix_pen_data pen_data;
 };
@@ -631,12 +480,8 @@ struct goodix_ts_hw_ops {
 		struct goodix_ts_core *cd); /* clean sync flag */
 	int (*get_capacitance_data)(struct goodix_ts_core *cd,
 				    struct ts_rawdata_info *info);
-	int (*charger_on)(struct goodix_ts_core *cd, bool on);
-	int (*palm_on)(struct goodix_ts_core *cd, bool on);
-	int (*game)(struct goodix_ts_core *cd, u8 data0, u8 data1);
 	int (*get_frame_data)(struct goodix_ts_core *cd,
 			      struct ts_framedata *info);
-	int (*switch_report_rate)(struct goodix_ts_core *cd, bool on);
 	int (*read_flash)(struct goodix_ts_core *cd, unsigned int addr,
 			  unsigned char *data, unsigned int len);
 	int (*write_flash)(struct goodix_ts_core *cd, unsigned int addr,
@@ -680,23 +525,18 @@ struct goodix_ts_core {
 	struct goodix_ic_info ic_info;
 	struct goodix_bus_interface *bus;
 	struct goodix_ts_board_data board_data;
-	struct goodix_xiaomi_board_data goodix_xiaomi_board_data;
 	struct goodix_ts_hw_ops *hw_ops;
 	struct input_dev *input_dev;
 	struct input_dev *pen_dev;
-	struct class *goodix_tp_class;
-	struct device *goodix_touch_dev;
 	/* TODO counld we remove this from core data? */
 	struct goodix_ts_event ts_event;
-	unsigned long touch_id;
-	u8 eventsdata;
-	u8 mes[32];
-	u8 ssg[32];
 
 	/* every pointer of this array represent a kind of config */
 	struct goodix_ic_config *ic_configs[GOODIX_MAX_CONFIG_GROUP];
 	struct regulator *avdd;
 	struct regulator *iovdd;
+	unsigned char gesture_type;
+
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pin_sta_active;
 	struct pinctrl_state *pin_sta_suspend;
@@ -704,6 +544,7 @@ struct goodix_ts_core {
 	struct pinctrl_state *pinctrl_state_spimode;
 	struct pinctrl_state *pinctrl_dvdd_enable;
 	struct pinctrl_state *pinctrl_dvdd_disable;
+
 	int power_on;
 	int irq;
 	size_t irq_trig_cnt;
@@ -712,11 +553,6 @@ struct goodix_ts_core {
 	atomic_t suspended;
 	/* when this flag is true, driver should not clean the sync flag */
 	bool tools_ctrl_sync;
-	bool fod_finger;
-	bool fod_display_enabled;
-	bool in_sleep;
-	bool in_suspend;
-	struct goodix_Edge_suppression edge_data;
 
 	struct notifier_block ts_notifier;
 	struct goodix_ts_esd ts_esd;
@@ -724,46 +560,14 @@ struct goodix_ts_core {
 #ifdef CONFIG_FB
 	struct notifier_block fb_notifier;
 #endif
-	struct notifier_block charger_notifier;
 	struct workqueue_struct *event_wq;
-	struct workqueue_struct *gesture_wq;
-	struct workqueue_struct *game_wq;
 	struct work_struct suspend_work;
 	struct work_struct resume_work;
-	struct work_struct charger_work;
-	struct work_struct gesture_work;
-	struct work_struct game_work;
-	struct work_struct grip_mode_work;
-	struct work_struct power_supply_work;
 	struct work_struct self_check_work;
-	u8 lockdown_info[GOODIX_LOCKDOWN_SIZE];
-	struct proc_dir_entry *tp_lockdown_info_proc;
-	struct proc_dir_entry *tp_fw_version_proc;
-	struct proc_dir_entry *tp_selftest_proc;
 #ifdef GOODIX_DEBUGFS_ENABLE
 	struct dentry *debugfs;
 #endif
-	struct mutex report_mutex;
-	struct mutex core_mutex;
-	struct mutex edge_data_mutex;
-	struct mutex sleep_to_gesture_mutex;
 	int work_status;
-	int gesture_enabled;
-	int gamemode_enabled;
-	int double_wakeup;
-	int aod_status;
-	int fod_status;
-	int fod_icon_status;
-	int nonui_status;
-	int charger_status;
-	int gtp_mode;
-	int gtp_value;
-	int gtp_direction_value;
-	int palm_status;
-	int result_type;
-	int power_status;
-	int report_rate;
-	bool tp_pm_suspend;
 	struct completion pm_resume_completion;
 	struct notifier_block notifier;
 };
@@ -916,7 +720,6 @@ int checksum_cmp(const u8 *data, int size, int mode);
 int is_risk_data(const u8 *data, int size);
 u32 goodix_get_file_config_id(u8 *ic_config);
 void goodix_rotate_abcd2cbad(int tx, int rx, s16 *data);
-int goodix_gesture_enable(int enable);
 
 int goodix_fw_update_init(struct goodix_ts_core *core_data);
 void goodix_fw_update_uninit(void);
@@ -929,15 +732,6 @@ int inspect_module_init(struct goodix_ts_core *core_data);
 void inspect_module_exit(void);
 int goodix_tools_init(void);
 void goodix_tools_exit(void);
-int goodix_get_rawdata(struct device *dev, struct ts_rawdata_info *info);
-int goodix_ts_get_lockdown_info(struct goodix_ts_core *cd);
-
-/* extern int mi_disp_set_fod_queue_work(u32 fod_btn, bool from_touch); */
-void goodix_set_grip_filter(int *source, int *sum);
-void goodix_set_edge_filter_normal(void);
-void goodix_set_edge_filter_game(int edge_filter_corner_size_index);
-int brl_game(struct goodix_ts_core *cd, u8 data0, u8 data1);
-extern int brl_Edge_suppression(struct goodix_ts_core *cd);
 
 int goodix_check_ts_id_gpio(struct device *dev);
 

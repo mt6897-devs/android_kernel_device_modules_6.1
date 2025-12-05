@@ -20,25 +20,19 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
-
 #include <linux/backlight.h>
 #include <drm/drm_panel.h>
-#include <linux/power_supply.h>
 
 /* #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 38) */
 #include <linux/input/mt.h>
 #define INPUT_TYPE_B_PROTOCOL
 /* #endif */
+
 #ifdef CONFIG_MI_DISP_NOTIFIER
 #include "../../../gpu/drm/mediatek/mediatek_v2/mi_disp/mi_disp_notifier.h"
 #endif
 
-#ifdef GOODIX_FOD_AREA_REPORT
-#include "../../../gpu/drm/mediatek/mediatek_v2/mi_disp/mi_disp_lhbm.h"
-#endif
-
 #include "goodix_ts_core.h"
-//#include "mi_disp_notifier.h"
 
 #define GOODIX_DEFAULT_CFG_NAME "goodix_cfg_group.cfg"
 #define GOOIDX_INPUT_PHYS "goodix_ts/input0"
@@ -58,18 +52,9 @@ extern void touch_irq_boost(void);
 extern void lpm_disable_for_dev(bool on, char event_dev);
 #endif
 
-extern struct device *global_spi_parent_device;
 struct goodix_module goodix_modules;
 int core_module_prob_sate = CORE_MODULE_UNPROBED;
-struct goodix_ts_core *goodix_core_data;
 static int goodix_send_ic_config(struct goodix_ts_core *cd, int type);
-static void goodix_set_gesture_work(struct work_struct *work);
-static struct proc_dir_entry *touch_debug;
-static int goodix_get_charging_status(void);
-/*
-*只要每次亮屏上层下发set_mode_long_value 这个地方就可以去掉，先去掉
-*static bool brl_edge_normal_already = false;
-*/
 
 static void goodix_self_check(struct work_struct *work)
 {
@@ -798,136 +783,6 @@ static ssize_t goodix_ts_debug_log_store(struct device *dev,
 	return count;
 }
 
-/* double tap gesture show */
-static ssize_t goodix_ts_double_tap_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	int r = 0;
-
-	r = snprintf(buf, PAGE_SIZE, "state:%s\n",
-		     goodix_core_data->double_wakeup ? "enabled" : "disabled");
-
-	return r;
-}
-
-/* double tap gesture store */
-static ssize_t goodix_ts_double_tap_store(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
-{
-	if (!buf || count <= 0)
-		return -EINVAL;
-
-	if (buf[0] != '0') {
-		goodix_core_data->double_wakeup = 1;
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-	} else {
-		goodix_core_data->double_wakeup = 0;
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-	}
-	return count;
-}
-
-/* aod gesture show */
-static ssize_t goodix_ts_aod_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	int r = 0;
-
-	r = snprintf(buf, PAGE_SIZE, "state:%s\n",
-		     goodix_core_data->aod_status ? "enabled" : "disabled");
-
-	return r;
-}
-
-/* aod gesture_store */
-static ssize_t goodix_ts_aod_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	if (!buf || count <= 0)
-		return -EINVAL;
-
-	if (buf[0] != '0') {
-		goodix_core_data->aod_status = 1;
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-	} else {
-		goodix_core_data->aod_status = 0;
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-	}
-	return count;
-}
-
-/* fod gesture show */
-static ssize_t goodix_ts_fod_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	int r = 0;
-
-	r = snprintf(buf, PAGE_SIZE, "state:%s\n",
-		     goodix_core_data->fod_status ? "enabled" : "disabled");
-
-	return r;
-}
-
-/* fod gesture_store */
-static ssize_t goodix_ts_fod_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	if (!buf || count <= 0)
-		return -EINVAL;
-
-	if (buf[0] != '0') {
-		goodix_core_data->fod_status = 1;
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-	} else {
-		goodix_core_data->fod_status = 0;
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-	}
-	return count;
-}
-
-/* report_rate show */
-static ssize_t goodix_ts_report_rate_show(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
-{
-	int r = 0;
-
-	r = snprintf(buf, PAGE_SIZE, "touch report rate::%s\n",
-		     goodix_core_data->report_rate == 240 ? "240HZ" : "480HZ");
-
-	return r;
-}
-
-/* report_rate_store */
-static ssize_t goodix_ts_report_rate_store(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
-{
-	struct goodix_ts_core *core_data = dev_get_drvdata(dev);
-
-	if (!buf || count <= 0)
-		return -EINVAL;
-
-	if (buf[0] != '0') {
-		goodix_core_data->report_rate = 480;
-		core_data->hw_ops->switch_report_rate(core_data, true);
-	} else {
-		goodix_core_data->report_rate = 240;
-		core_data->hw_ops->switch_report_rate(core_data, false);
-	}
-	return count;
-}
-
 static DEVICE_ATTR_RO(goodix_ts_driver_info);
 static DEVICE_ATTR_RO(goodix_ts_chip_info);
 static DEVICE_ATTR_WO(goodix_ts_reset);
@@ -937,10 +792,6 @@ static DEVICE_ATTR_RW(goodix_ts_reg_rw);
 static DEVICE_ATTR_RW(goodix_ts_irq_info);
 static DEVICE_ATTR_RW(goodix_ts_esd_info);
 static DEVICE_ATTR_RW(goodix_ts_debug_log);
-static DEVICE_ATTR_RW(goodix_ts_double_tap);
-static DEVICE_ATTR_RW(goodix_ts_aod);
-static DEVICE_ATTR_RW(goodix_ts_report_rate);
-static DEVICE_ATTR_RW(goodix_ts_fod);
 static struct attribute *sysfs_attrs[] = {
 	&dev_attr_goodix_ts_driver_info.attr,
 	&dev_attr_goodix_ts_chip_info.attr,
@@ -951,10 +802,6 @@ static struct attribute *sysfs_attrs[] = {
 	&dev_attr_goodix_ts_irq_info.attr,
 	&dev_attr_goodix_ts_esd_info.attr,
 	&dev_attr_goodix_ts_debug_log.attr,
-	&dev_attr_goodix_ts_double_tap.attr,
-	&dev_attr_goodix_ts_aod.attr,
-	&dev_attr_goodix_ts_report_rate.attr,
-	&dev_attr_goodix_ts_fod.attr,
 	NULL,
 };
 
@@ -1313,14 +1160,6 @@ static int goodix_parse_dt(struct device_node *node,
 		return r;
 	}
 
-	r = of_property_count_u32_elems(node, "goodix,touch-expert-array");
-	if (r == GAME_ARRAY_LEN * GAME_ARRAY_SIZE) {
-		of_property_read_u32_array(node, "goodix,touch-expert-array",
-					   board_data->touch_expert_array, r);
-	} else {
-		ts_err("Failed to parse touch-expert-array:%d", r);
-	}
-
 	/*get pen-enable switch and pen keys, must after "key map"*/
 	board_data->pen_enable =
 		of_property_read_bool(node, "goodix,pen-enable");
@@ -1378,133 +1217,52 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 	struct goodix_ts_core *cd = input_get_drvdata(dev);
 	unsigned int touch_num = touch_data->touch_num;
 	int i;
-	static int pre_finger_num;
 	int resolution_factor;
-	int report_x;
-	int report_y;
 
 	mutex_lock(&dev->mutex);
-	if ((goodix_core_data->eventsdata & 0x08) &&
-	    (goodix_core_data->fod_status != 0 &&
-	     goodix_core_data->fod_status != -1) &&
-	    (!goodix_core_data->fod_finger)) {
-		ts_info("fod down");
-		goodix_core_data->fod_finger = true;
-		input_report_key(dev, BTN_INFO, 1);
-		input_sync(dev);
-		update_fod_press_status(1);
-		/* mi_disp_set_fod_queue_work(1, true); */
-		ts_info("fod finger is %d", goodix_core_data->fod_finger);
-		goto finger_pos;
-	} else if ((goodix_core_data->eventsdata & 0x08) != 0x08 &&
-		   goodix_core_data->fod_finger) {
-		ts_info("ts fod up");
-		input_report_key(dev, BTN_INFO, 0);
-		input_report_abs(dev, ABS_MT_WIDTH_MAJOR, 0);
-		input_report_abs(dev, ABS_MT_WIDTH_MINOR, 0);
-		input_sync(dev);
-		/* mi_disp_set_fod_queue_work(0, true); */
-		goodix_core_data->fod_finger = false;
-		update_fod_press_status(0);
-		ts_info("fod finger is %d", goodix_core_data->fod_finger);
-		goto finger_pos;
-	}
-finger_pos:
+
 	for (i = 0; i < GOODIX_MAX_TOUCH; i++) {
 		if (touch_data->coords[i].status == TS_TOUCH) {
-			ts_debug("report: id %d, x %d, y %d, w %d", i,
-				 touch_data->coords[i].x,
-				 touch_data->coords[i].y,
-				 touch_data->coords[i].w);
 			/*
-			 *Make sure the Touch function works properly regardless of
-			 *whether the TouchIC firmware supports the super-resolution
-			 *scanning function
-			 */
+				Make sure the Touch function works properly regardless of
+				whether the TouchIC firmware supports the super-resolution
+				scanning function
+			*/
 			if (cd->ic_info.other.screen_max_x >
 			    cd->board_data.panel_max_x) {
-				/* if supported */
 				resolution_factor =
 					cd->ic_info.other.screen_max_x /
 					cd->board_data.panel_max_x;
-				report_x = touch_data->coords[i].x;
-				report_y = touch_data->coords[i].y;
+				touch_data->coords[i].x /= resolution_factor;
+				touch_data->coords[i].y /= resolution_factor;
 			} else {
-				/* if not supported */
 				resolution_factor =
 					cd->board_data.panel_max_x /
 					cd->ic_info.other.screen_max_x;
-				report_x = touch_data->coords[i].x *
-					   resolution_factor;
-				report_y = touch_data->coords[i].y *
-					   resolution_factor;
+				touch_data->coords[i].x *= resolution_factor;
+				touch_data->coords[i].y *= resolution_factor;
 			}
-			ts_debug("panel_max_x: %d, screen_max_x:%d",
-				 cd->board_data.panel_max_x,
-				 cd->ic_info.other.screen_max_x);
-			ts_debug(
-				"report: id %d, x %d, y %d, w %d resolution_factor:%d",
-				i, report_x, report_y, touch_data->coords[i].w,
-				resolution_factor);
+
+			ts_debug("report: id[%d], x %d, y %d, w %d", i,
+				 touch_data->coords[i].x,
+				 touch_data->coords[i].y,
+				 touch_data->coords[i].w);
+
 			input_mt_slot(dev, i);
 			input_mt_report_slot_state(dev, MT_TOOL_FINGER, true);
-			input_report_abs(dev, ABS_MT_POSITION_X, report_x);
-			input_report_abs(dev, ABS_MT_POSITION_Y, report_y);
-			if ((goodix_core_data->eventsdata & 0x08) != 0x08 ||
-			    !goodix_core_data->fod_status)
-				touch_data->overlay = 0;
-			input_report_abs(dev, ABS_MT_WIDTH_MAJOR,
-					 touch_data->overlay);
-			input_report_abs(dev, ABS_MT_WIDTH_MINOR,
-					 touch_data->overlay);
-#ifdef GOODIX_XIAOMI_TOUCHFEATURE
-			last_touch_events_collect(i, 1);
-#endif
+			input_report_abs(dev, ABS_MT_POSITION_X,
+					 touch_data->coords[i].x);
+			input_report_abs(dev, ABS_MT_POSITION_Y,
+					 touch_data->coords[i].y);
+			input_report_abs(dev, ABS_MT_TOUCH_MAJOR,
+					 touch_data->coords[i].w);
 		} else {
 			input_mt_slot(dev, i);
 			input_mt_report_slot_state(dev, MT_TOOL_FINGER, false);
-#ifdef GOODIX_XIAOMI_TOUCHFEATURE
-			last_touch_events_collect(i, 0);
-#endif
 		}
 	}
 
-	if (touch_num && !pre_finger_num) { /*first touch down */
-		input_report_key(dev, BTN_TOUCH, 1);
-		ts_info("BTN_TOUCH DOWN, touch num: %d", touch_num);
-		input_report_key(dev, BTN_TOOL_FINGER, 1);
-		if (global_spi_parent_device != NULL) {
-			pm_runtime_set_autosuspend_delay(
-				global_spi_parent_device, 250);
-			pm_runtime_use_autosuspend(global_spi_parent_device);
-			pm_runtime_enable(global_spi_parent_device);
-		}
-	} else if (!touch_num && pre_finger_num) { /*last touch up */
-		input_report_key(dev, BTN_TOUCH, 0);
-		ts_info("BTN_TOUCH UP, touch num: %d", touch_num);
-		input_report_key(dev, BTN_TOOL_FINGER, 0);
-
-		/*借鉴M12代码增加该部分*/
-		if (goodix_core_data->fod_finger) {
-			ts_info("ts force fod up!");
-			input_report_key(dev, BTN_INFO, 0);
-			input_report_abs(dev, ABS_MT_WIDTH_MAJOR, 0);
-			input_report_abs(dev, ABS_MT_WIDTH_MINOR, 0);
-			input_sync(dev);
-			update_fod_press_status(0);
-			//mi_disp_set_fod_queue_work(0, true);
-			goodix_core_data->fod_finger = false;
-		}
-
-		if (global_spi_parent_device != NULL) {
-			pm_runtime_set_autosuspend_delay(
-				global_spi_parent_device, 50);
-			pm_runtime_use_autosuspend(global_spi_parent_device);
-			pm_runtime_enable(global_spi_parent_device);
-		}
-	}
-	pre_finger_num = touch_num;
-
+	input_report_key(dev, BTN_TOUCH, touch_num > 0 ? 1 : 0);
 	input_sync(dev);
 
 	mutex_unlock(&dev->mutex);
@@ -1550,26 +1308,6 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 
 	ts_esd->irq_status = true;
 	core_data->irq_trig_cnt++;
-#ifdef CONFIG_TOUCH_BOOST
-	touch_irq_boost();
-#endif
-	pm_stay_awake(core_data->bus->dev);
-#ifdef CONFIG_PM
-	if (core_data->tp_pm_suspend) {
-		ts_info("device in suspend, wait to resume");
-		ret = wait_for_completion_timeout(
-			&core_data->pm_resume_completion,
-			msecs_to_jiffies(300));
-		if (!ret) {
-			pm_relax(core_data->bus->dev);
-			ts_err("system can't finished resuming procedure");
-			return IRQ_HANDLED;
-		}
-	}
-#endif
-#ifdef CONFIG_TOUCH_BOOST
-	lpm_disable_for_dev(true, EVENT_INPUT);
-#endif
 	/* inform external module */
 	mutex_lock(&goodix_modules.mutex);
 	list_for_each_entry_safe (ext_module, next, &goodix_modules.head,
@@ -1579,10 +1317,6 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 		ret = ext_module->funcs->irq_event(core_data, ext_module);
 		if (ret == EVT_CANCEL_IRQEVT) {
 			mutex_unlock(&goodix_modules.mutex);
-#ifdef CONFIG_TOUCH_BOOST
-			lpm_disable_for_dev(false, EVENT_INPUT);
-#endif
-			pm_relax(core_data->bus->dev);
 			return IRQ_HANDLED;
 		}
 	}
@@ -1604,14 +1338,6 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 		if (ts_event->event_type == EVENT_REQUEST)
 			goodix_ts_request_handle(core_data, ts_event);
 	}
-
-	if (!core_data->tools_ctrl_sync && !ts_event->retry)
-		hw_ops->after_event_handler(core_data);
-	ts_event->retry = 0;
-#ifdef CONFIG_TOUCH_BOOST
-	lpm_disable_for_dev(false, EVENT_INPUT);
-#endif
-	pm_relax(core_data->bus->dev);
 
 	return IRQ_HANDLED;
 }
@@ -1879,7 +1605,6 @@ static int goodix_ts_input_dev_config(struct goodix_ts_core *core_data)
 	__set_bit(EV_KEY, input_dev->evbit);
 	__set_bit(EV_ABS, input_dev->evbit);
 	__set_bit(BTN_TOUCH, input_dev->keybit);
-	__set_bit(BTN_INFO, input_dev->keybit);
 	__set_bit(KEY_WAKEUP, input_dev->keybit);
 	__set_bit(KEY_GOTO, input_dev->keybit);
 	__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
@@ -1909,7 +1634,6 @@ static int goodix_ts_input_dev_config(struct goodix_ts_core *core_data)
 	input_set_capability(input_dev, EV_KEY, KEY_POWER);
 	input_set_capability(input_dev, EV_KEY, KEY_WAKEUP);
 	input_set_capability(input_dev, EV_KEY, KEY_GOTO);
-	input_set_capability(input_dev, EV_KEY, BTN_INFO);
 	r = input_register_device(input_dev);
 	if (r < 0) {
 		ts_err("Unable to register input device");
@@ -2123,25 +1847,9 @@ static void goodix_ts_release_connects(struct goodix_ts_core *core_data)
 
 	mutex_lock(&input_dev->mutex);
 
-	/*借鉴M12代码释放touch的时候顺便释放fod状态*/
-	if (core_data->fod_finger) {
-		core_data->fod_finger = false;
-		//core_data->fod_down_before_suspend = true;
-		input_report_key(input_dev, BTN_INFO, 0);
-		input_report_abs(input_dev, ABS_MT_WIDTH_MAJOR, 0);
-		input_report_abs(input_dev, ABS_MT_WIDTH_MINOR, 0);
-		input_sync(input_dev);
-		update_fod_press_status(0);
-		//mi_disp_set_fod_queue_work(0, true);
-		ts_info("ts fod up for suspend");
-	}
-
 	for (i = 0; i < GOODIX_MAX_TOUCH; i++) {
 		input_mt_slot(input_dev, i);
 		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
-#ifdef GOODIX_XIAOMI_TOUCHFEATURE
-		last_touch_events_collect(i, 0);
-#endif
 	}
 	input_report_key(input_dev, BTN_TOUCH, 0);
 	input_mt_sync_frame(input_dev);
@@ -2233,11 +1941,7 @@ out:
 	lpm_disable_for_dev(false, EVENT_INPUT);
 #endif
 
-#ifdef CONFIG_FACTORY_BUILD
-	goodix_ts_power_off(core_data);
-#endif
 	goodix_ts_release_connects(core_data);
-	/*brl_edge_normal_already = false;*/
 	ts_info("Suspend end");
 	return 0;
 }
@@ -2256,10 +1960,9 @@ static int goodix_ts_resume(struct goodix_ts_core *core_data)
 	    !atomic_read(&core_data->suspended))
 		return 0;
 
-	mutex_lock(&core_data->sleep_to_gesture_mutex);
-
 	ts_info("Resume start");
 	atomic_set(&core_data->suspended, 0);
+	hw_ops->irq_enable(core_data, false);
 
 	mutex_lock(&goodix_modules.mutex);
 	if (!list_empty(&goodix_modules.head)) {
@@ -2280,22 +1983,12 @@ static int goodix_ts_resume(struct goodix_ts_core *core_data)
 	}
 	mutex_unlock(&goodix_modules.mutex);
 
-	if (!core_data->gesture_enabled &&
-	    (core_data->work_status == TP_GESTURE)) {
-		hw_ops->irq_enable(core_data, false);
-		disable_irq_wake(core_data->irq);
-	}
-
 	if (core_data->pinctrl && (core_data->work_status == TP_SLEEP)) {
 		ret = pinctrl_select_state(core_data->pinctrl,
 					   core_data->pin_sta_active);
 		if (ret < 0)
 			ts_err("Failed to select active pinstate, ret:%d", ret);
 	}
-
-#ifdef CONFIG_FACTORY_BUILD
-	goodix_ts_power_on(core_data);
-#endif
 
 	/* reset device or power on*/
 	if (hw_ops->resume)
@@ -2321,47 +2014,14 @@ static int goodix_ts_resume(struct goodix_ts_core *core_data)
 	mutex_unlock(&goodix_modules.mutex);
 
 out:
-	/* enable charger mode */
-	core_data->work_status = TP_NORMAL;
-	if (core_data->charger_status)
-		hw_ops->charger_on(core_data, true);
-
-	/* enable palm sensor */
-	if (core_data->palm_status)
-		ret = hw_ops->palm_on(core_data, core_data->palm_status);
-
 	/* enable irq */
 	hw_ops->irq_enable(core_data, true);
 
-	/*release fod event  仿照K9E代码添加暂时不懂有没有影响以及会不会对FOD有影响 M12没执行这个函数
-	if (!core_data->fod_finger) {
-		goodix_ts_release_connects(core_data);
-	}
-   */
 	/* open esd */
 	goodix_ts_blocking_notify(NOTIFY_RESUME, NULL);
 
-	/*update ic_info 仿照K9E代码把更新IC信息这部分打开 *屏蔽后确认每次唤醒后边缘抑制数据能下发成功就可以*/
-	/*hw_ops->get_ic_info(core_data, &core_data->ic_info);*/
-	/* brl_Edge_normal */
-	/* 这部分暂时看起来没必要后续测试深入看看不报问题就去掉
-	if(!brl_edge_normal_already){
-		if (core_data->gamemode_enabled) {
-			ts_debug("%s in gamemode, can't write parameters to touch ic\n",__func__);
-		} else {
-			ts_info("send normal edge data in goodix_ts_resume");
-			goodix_set_edge_filter_normal();
-			brl_Edge_suppression(core_data);
-		}
-		brl_edge_normal_already = true;
-	}else{
-		ts_info("set brl_Edge_normal params in goodix_set_mode_long_value, brl_edge_normal_already = %d", brl_edge_normal_already);
-	}
-	*/
-
 	ts_info("Resume end");
 
-	mutex_unlock(&core_data->sleep_to_gesture_mutex);
 	return 0;
 }
 static void goodix_ts_resume_work(struct work_struct *work)
@@ -2453,11 +2113,6 @@ static int goodix_ts_pm_suspend(struct device *dev)
 {
 	struct goodix_ts_core *core_data = dev_get_drvdata(dev);
 
-	ts_info("%s enter", __func__);
-
-	if (device_may_wakeup(dev) && core_data->gesture_enabled)
-		enable_irq_wake(core_data->irq);
-	core_data->tp_pm_suspend = true;
 	reinit_completion(&core_data->pm_resume_completion);
 	return 0;
 }
@@ -2468,11 +2123,7 @@ static int goodix_ts_pm_suspend(struct device *dev)
 static int goodix_ts_pm_resume(struct device *dev)
 {
 	struct goodix_ts_core *core_data = dev_get_drvdata(dev);
-	ts_info("%s enter.", __func__);
 
-	if (device_may_wakeup(dev) && core_data->gesture_enabled)
-		disable_irq_wake(core_data->irq);
-	core_data->tp_pm_suspend = false;
 	complete(&core_data->pm_resume_completion);
 	return 0;
 }
@@ -2509,88 +2160,10 @@ static int goodix_generic_noti_callback(struct notifier_block *self,
 	return 0;
 }
 
-static int goodix_get_charging_status(void)
-{
-	struct power_supply *usb_psy;
-	struct power_supply *dc_psy;
-	union power_supply_propval val;
-	int rc = 0;
-	int is_charging = 0;
-
-	is_charging = !!power_supply_is_system_supplied();
-	if (!is_charging)
-		return 0;
-
-	dc_psy = power_supply_get_by_name("wireless");
-	if (dc_psy) {
-		rc = power_supply_get_property(dc_psy, POWER_SUPPLY_PROP_ONLINE,
-					       &val);
-		if (rc < 0)
-			ts_err("Couldn't get DC online status, rc=%d\n", rc);
-		else if (val.intval == 1)
-			return 1;
-	}
-
-	usb_psy = power_supply_get_by_name("usb");
-	if (usb_psy) {
-		rc = power_supply_get_property(usb_psy,
-					       POWER_SUPPLY_PROP_ONLINE, &val);
-		if (rc < 0)
-			ts_err("Couldn't get usb online status, rc=%d\n", rc);
-		else if (val.intval == 1)
-			return 1;
-	}
-
-	return 0;
-}
-
-static void charger_power_supply_work(struct work_struct *work)
-{
-	struct goodix_ts_core *core_data =
-		container_of(work, struct goodix_ts_core, power_supply_work);
-	const struct goodix_ts_hw_ops *hw_ops = core_data->hw_ops;
-	int charge_status = -1;
-
-	if (core_data->init_stage < CORE_INIT_STAGE2 ||
-	    atomic_read(&core_data->suspended)) {
-		ts_debug("Init stage,forbid changing charger status");
-		return;
-	}
-	charge_status = !!goodix_get_charging_status();
-	ts_debug("power supply changed,Power_supply_event:%d", charge_status);
-	if (charge_status != core_data->charger_status ||
-	    core_data->charger_status < 0) {
-		core_data->charger_status = charge_status;
-		if (charge_status) {
-			ts_info("charger usb in");
-			hw_ops->charger_on(core_data, true);
-		} else {
-			ts_info("charger usb exit");
-			hw_ops->charger_on(core_data, false);
-		}
-	}
-}
-
-static int charger_status_event_callback(struct notifier_block *nb,
-					 unsigned long event, void *ptr)
-{
-	struct goodix_ts_core *core_data =
-		container_of(nb, struct goodix_ts_core, charger_notifier);
-
-	if (!core_data)
-		return 0;
-	queue_work(core_data->event_wq, &core_data->power_supply_work);
-	return 0;
-}
-
 int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 {
 	int ret;
 
-	/*init report mutex lock */
-	mutex_init(&cd->report_mutex);
-	mutex_init(&cd->edge_data_mutex);
-	mutex_init(&cd->sleep_to_gesture_mutex);
 	/* alloc/config/register input device */
 	ret = goodix_ts_input_dev_config(cd);
 	if (ret < 0) {
@@ -2621,16 +2194,6 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 		ret = -ENOMEM;
 		goto exit;
 	}
-	cd->gesture_wq =
-		alloc_workqueue("gtp-gesture-queue",
-				WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
-	if (!cd->gesture_wq) {
-		ts_err("goodix cannot create gesture work thread");
-		ret = -ENOMEM;
-		goto exit;
-	}
-
-	INIT_WORK(&cd->gesture_work, goodix_set_gesture_work);
 
 	/* register suspend and resume notifier callchain */
 	INIT_WORK(&cd->suspend_work, goodix_ts_suspend_work);
@@ -2645,15 +2208,6 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 	if (fb_register_client(&cd->fb_notifier))
 		ts_err("Failed to register fb notifier client:%d", ret);
 #endif
-
-	/* register charger status change notifier */
-	INIT_WORK(&cd->power_supply_work, charger_power_supply_work);
-	cd->charger_notifier.notifier_call = charger_status_event_callback;
-	if (power_supply_reg_notifier(&cd->charger_notifier))
-		ts_err("failed to register charger notifier client");
-
-	/* get ts lockdown info */
-	goodix_ts_get_lockdown_info(cd);
 
 	/* create sysfs files */
 	goodix_ts_sysfs_init(cd);
@@ -2803,1622 +2357,6 @@ static int goodix_start_later_init(struct goodix_ts_core *ts_core)
 	}
 	return 0;
 }
-static ssize_t goodix_lockdown_info_read(struct file *file, char __user *buf,
-					 size_t count, loff_t *pos)
-{
-	int cnt = 0, ret = 0;
-#define TP_INFO_MAX_LENGTH 50
-	char tmp[TP_INFO_MAX_LENGTH];
-
-	if (*pos != 0 || !goodix_core_data)
-		return 0;
-
-	cnt = snprintf(
-		tmp, TP_INFO_MAX_LENGTH,
-		"0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",
-		goodix_core_data->lockdown_info[0],
-		goodix_core_data->lockdown_info[1],
-		goodix_core_data->lockdown_info[2],
-		goodix_core_data->lockdown_info[3],
-		goodix_core_data->lockdown_info[4],
-		goodix_core_data->lockdown_info[5],
-		goodix_core_data->lockdown_info[6],
-		goodix_core_data->lockdown_info[7]);
-
-	ret = copy_to_user(buf, tmp, cnt);
-	*pos += cnt;
-	if (ret != 0)
-		return 0;
-	else
-		return cnt;
-}
-static const struct proc_ops goodix_lockdown_info_ops = {
-	.proc_read = goodix_lockdown_info_read,
-	.proc_lseek = default_llseek,
-};
-static ssize_t goodix_fw_version_info_read(struct file *file, char __user *buf,
-					   size_t count, loff_t *pos)
-{
-	struct goodix_ts_hw_ops *hw_ops = goodix_core_data->hw_ops;
-	struct goodix_fw_version chip_ver;
-	char k_buf[100] = { 0 };
-	int ret = 0;
-	int cnt = -EINVAL;
-
-	if (*pos != 0 || !hw_ops)
-		return 0;
-	if (hw_ops->read_version) {
-		ret = hw_ops->read_version(goodix_core_data, &chip_ver);
-		if (!ret) {
-			cnt = snprintf(&k_buf[0], sizeof(k_buf),
-				       "patch_pid:%s\n", chip_ver.patch_pid);
-			cnt += snprintf(&k_buf[cnt], sizeof(k_buf),
-					"patch_vid:%02x%02x%02x%02x\n",
-					chip_ver.patch_vid[0],
-					chip_ver.patch_vid[1],
-					chip_ver.patch_vid[2],
-					chip_ver.patch_vid[3]);
-		}
-	}
-
-	if (hw_ops->get_ic_info) {
-		ret = hw_ops->get_ic_info(goodix_core_data,
-					  &goodix_core_data->ic_info);
-		if (!ret) {
-			cnt += snprintf(&k_buf[cnt], sizeof(k_buf),
-					"config_version:%x\n",
-					goodix_core_data->ic_info.version
-						.config_version);
-		}
-	}
-	cnt = cnt > count ? count : cnt;
-	ret = copy_to_user(buf, k_buf, cnt);
-	*pos += cnt;
-	if (ret != 0)
-		return 0;
-	else
-		return cnt;
-}
-static const struct proc_ops goodix_fw_version_info_ops = {
-	.proc_read = goodix_fw_version_info_read,
-	.proc_lseek = default_llseek,
-};
-
-static ssize_t goodix_selftest_read(struct file *file, char __user *buf,
-				    size_t count, loff_t *pos)
-{
-	char tmp[5] = { 0 };
-	int cnt;
-
-	if (*pos != 0 || !goodix_core_data)
-		return 0;
-	cnt = snprintf(tmp, sizeof(goodix_core_data->result_type), "%d\n",
-		       goodix_core_data->result_type);
-	if (copy_to_user(buf, tmp, strlen(tmp)))
-		return -EFAULT;
-	*pos += cnt;
-	return cnt;
-}
-
-static int goodix_short_open_test(void)
-{
-	struct ts_rawdata_info *info = NULL;
-	int test_result;
-
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return GTP_RESULT_INVALID;
-
-	if (goodix_get_rawdata(&goodix_core_data->pdev->dev, info)) {
-		ts_err("Factory_test FAIL");
-		test_result = GTP_RESULT_INVALID;
-		goto exit;
-	}
-
-	if (80 == (*(info->result + 1))) {
-		ts_info("test PASS!");
-		test_result = GTP_RESULT_PASS;
-	} else {
-		ts_err("test FAILED!");
-		test_result = GTP_RESULT_FAIL;
-	}
-
-exit:
-	ts_info("resultInfo: %s", info->result);
-	/* ret = snprintf(buf, PAGE_SIZE, "resultInfo: %s", info->result); */
-
-	kfree(info);
-	return test_result;
-}
-
-static ssize_t goodix_selftest_write(struct file *file, const char __user *buf,
-				     size_t count, loff_t *pos)
-{
-	struct goodix_fw_version chip_ver;
-	struct goodix_ts_hw_ops *hw_ops;
-	int retval = 0;
-	char tmp[6];
-
-	if (copy_from_user(tmp, buf, count)) {
-		retval = -EFAULT;
-		goto out;
-	}
-	if (!goodix_core_data)
-		return GTP_RESULT_INVALID;
-	hw_ops = goodix_core_data->hw_ops;
-
-	if (!strncmp("short", tmp, 5) || !strncmp("open", tmp, 4)) {
-		retval = goodix_short_open_test();
-	} else if (!strncmp("i2c", tmp, 3)) {
-		hw_ops->read_version(goodix_core_data, &chip_ver);
-		if (chip_ver.sensor_id == 255)
-			retval = GTP_RESULT_PASS;
-		else
-			retval = GTP_RESULT_FAIL;
-	}
-
-	goodix_core_data->result_type = retval;
-out:
-	if (retval >= 0)
-		retval = count;
-
-	return retval;
-}
-static const struct proc_ops goodix_selftest_ops = {
-	.proc_read = goodix_selftest_read,
-	.proc_write = goodix_selftest_write,
-	.proc_lseek = default_llseek,
-};
-
-int goodix_ts_get_lockdown_info(struct goodix_ts_core *cd)
-{
-	int ret = 0;
-	struct goodix_ts_hw_ops *hw_ops = cd->hw_ops;
-
-	ret = hw_ops->read(cd, TS_LOCKDOWN_REG, cd->lockdown_info,
-			   GOODIX_LOCKDOWN_SIZE);
-	if (ret) {
-		ts_err("can't get lockdown");
-		return -EINVAL;
-	}
-
-	ts_info("lockdown is:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x",
-		cd->lockdown_info[0], cd->lockdown_info[1],
-		cd->lockdown_info[2], cd->lockdown_info[3],
-		cd->lockdown_info[4], cd->lockdown_info[5],
-		cd->lockdown_info[6], cd->lockdown_info[7]);
-	return 0;
-}
-
-static ssize_t fod_test_store(struct device *dev, struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	int value = 0;
-	struct goodix_ts_core *info = dev_get_drvdata(dev);
-
-	ts_info("%s,buf:%s,count:%zu\n", __func__, buf, count);
-	if (kstrtoint(buf, 10, &value))
-		return -EINVAL;
-	if (value) {
-		input_report_key(info->input_dev, BTN_INFO, 1);
-		update_fod_press_status(1);
-		/* mi_disp_set_fod_queue_work(1, true); */
-		input_sync(info->input_dev);
-		input_mt_slot(info->input_dev, 0);
-		input_mt_report_slot_state(info->input_dev, MT_TOOL_FINGER, 1);
-		input_report_key(info->input_dev, BTN_TOUCH, 1);
-		input_report_key(info->input_dev, BTN_TOOL_FINGER, 1);
-		input_report_abs(info->input_dev, ABS_MT_TRACKING_ID, 0);
-		input_report_abs(info->input_dev, ABS_MT_WIDTH_MINOR, 1);
-		input_report_abs(info->input_dev, ABS_MT_POSITION_X, 9744);
-		input_report_abs(info->input_dev, ABS_MT_POSITION_Y, 38992);
-		input_sync(info->input_dev);
-	} else {
-		input_mt_slot(info->input_dev, 0);
-		input_report_abs(info->input_dev, ABS_MT_WIDTH_MINOR, 0);
-		input_mt_report_slot_state(info->input_dev, MT_TOOL_FINGER, 0);
-		input_report_abs(info->input_dev, ABS_MT_TRACKING_ID, -1);
-		input_report_key(info->input_dev, BTN_INFO, 0);
-		update_fod_press_status(0);
-		/* mi_disp_set_fod_queue_work(0, true); */
-		input_sync(info->input_dev);
-	}
-	return count;
-}
-
-static DEVICE_ATTR_WO(fod_test);
-
-#ifdef GOODIX_XIAOMI_TOUCHFEATURE
-static struct xiaomi_touch_interface xiaomi_touch_interfaces;
-
-static void goodix_sleep_to_gesture(struct goodix_ts_core *cd)
-{
-	int ret;
-	struct goodix_ts_hw_ops *hw_ops = cd->hw_ops;
-
-	ts_info("ic is in sleep already, need to reset");
-
-	if (cd->pinctrl) {
-		ret = pinctrl_select_state(cd->pinctrl, cd->pin_sta_active);
-		if (ret < 0)
-			ts_err("Failed to select active pinstate, ret:%d", ret);
-	}
-	hw_ops->reset(cd, GOODIX_NORMAL_RESET_DELAY_MS);
-	ret = hw_ops->gesture(cd, cd->gesture_enabled);
-	if (ret)
-		ts_err("failed enter gesture mode");
-	else
-		ts_info("enter gesture mode");
-	cd->work_status = TP_GESTURE;
-	hw_ops->irq_enable(cd, true);
-	enable_irq_wake(cd->irq);
-}
-/*
- * bit 0: double tap
- * bit 1: single tap
- */
-static void goodix_set_gesture_work(struct work_struct *work)
-{
-	struct goodix_ts_core *core_data =
-		container_of(work, struct goodix_ts_core, gesture_work);
-	ts_debug("double is %d", core_data->double_wakeup);
-	ts_debug("aod is %d", core_data->aod_status);
-	ts_debug("fod is %i", core_data->fod_status);
-	ts_debug("fod_icon is %d", core_data->fod_icon_status);
-	ts_debug("nonui is %d", core_data->nonui_status);
-	/*Resolve three cases: delete all fingerprints and enter fingerprint exit 
-	 *and Fingerprint lock screen does not use fingerprints*/
-	if (!(!core_data->fod_status &&
-	      (core_data->work_status == TP_GESTURE) &&
-	      core_data->fod_finger)) {
-		if ((core_data->double_wakeup) || (core_data->aod_status) ||
-		    (core_data->fod_status != -1 && core_data->fod_status != 0))
-			core_data->gesture_enabled |= (1 << 0);
-		else
-			core_data->gesture_enabled &= ~(1 << 0);
-		ts_info("set gesture_enabled:%d", core_data->gesture_enabled);
-		goodix_gesture_enable(core_data->gesture_enabled);
-	}
-
-	if ((core_data->nonui_status != 2) && core_data->gesture_enabled &&
-	    (core_data->work_status == TP_SLEEP) &&
-	    (atomic_read(&core_data->suspended))) {
-		mutex_lock(&core_data->sleep_to_gesture_mutex);
-		goodix_sleep_to_gesture(core_data);
-		mutex_unlock(&core_data->sleep_to_gesture_mutex);
-	}
-}
-
-static void goodix_set_game_work(struct work_struct *work)
-{
-	struct goodix_ts_hw_ops *hw_ops = goodix_core_data->hw_ops;
-	u8 data0 = 0;
-	u8 data1 = 0;
-	/* vars with _last_time all for edge_data_update 
-	static u8 edge_data_last_time = 4;//Touch_Edge_Filter can be 0~3
-	static u8 panel_ori_last_time = 3;//Touch_Panel_Orientation can be 0~2
-	static bool gamemode_enable_last_time = false;//goodix_core_data->gamemode_enabled can be true or false
-	*/
-	static bool game_edge_update_falg = false;
-	u8 temp_value = 0;
-	int ret = 0;
-	int i = 0;
-	bool update = false;
-	static bool expert_mode = false;
-	int edge_filter_corner_size = 180; /*case1 default is 170*/
-
-	if (goodix_core_data->work_status != TP_NORMAL) {
-		ts_info("suspended or gesture, skip");
-		return;
-	}
-
-	mutex_lock(&goodix_core_data->core_mutex);
-	for (i = 0; i <= Touch_Panel_Orientation; i++) {
-		if (xiaomi_touch_interfaces.touch_mode[i][GET_CUR_VALUE] !=
-		    xiaomi_touch_interfaces.touch_mode[i][SET_CUR_VALUE]) {
-			update = true;
-			if (Touch_Expert_Mode == i) {
-				expert_mode = true;
-				ts_info("expert mode set");
-			} else if ((i == Touch_Tolerance) ||
-				   (i == Touch_UP_THRESHOLD) ||
-				   (i == Touch_Aim_Sensitivity) ||
-				   (i == Touch_Tap_Stability))
-				expert_mode = false;
-
-			if (((i == Touch_Game_Mode) &&
-			     (goodix_core_data->gamemode_enabled)) ||
-			    (i == Touch_Panel_Orientation) ||
-			    (i == Touch_Edge_Filter)) {
-				game_edge_update_falg = true;
-				ts_info("edge data may be updated because %d",
-					i);
-			}
-			xiaomi_touch_interfaces.touch_mode[i][GET_CUR_VALUE] =
-				xiaomi_touch_interfaces
-					.touch_mode[i][SET_CUR_VALUE];
-		}
-	}
-
-	if (!update) {
-		ts_info("no need update mode value");
-		mutex_unlock(&goodix_core_data->core_mutex);
-		return;
-	}
-
-	ts_info("enter set_game_work in core.c");
-	for (i = 0; i <= Touch_Panel_Orientation; i++) {
-		switch (i) {
-		case Touch_Game_Mode:
-			temp_value = xiaomi_touch_interfaces
-					     .touch_mode[Touch_Game_Mode]
-							[SET_CUR_VALUE];
-			break;
-		case Touch_Active_MODE:
-			break;
-		case Touch_UP_THRESHOLD:
-			temp_value = xiaomi_touch_interfaces
-					     .touch_mode[Touch_UP_THRESHOLD]
-							[SET_CUR_VALUE];
-			data0 &= 0xF8;
-			data0 |= temp_value;
-			break;
-		case Touch_Tolerance:
-			temp_value = xiaomi_touch_interfaces
-					     .touch_mode[Touch_Tolerance]
-							[SET_CUR_VALUE];
-			data0 &= 0xC7;
-			data0 |= (temp_value << 3);
-			break;
-		case Touch_Panel_Orientation:
-			temp_value =
-				xiaomi_touch_interfaces
-					.touch_mode[Touch_Panel_Orientation]
-						   [SET_CUR_VALUE];
-			if (temp_value == PANEL_ORIENTATION_DEGREE_90)
-				temp_value = 1;
-			else if (temp_value == PANEL_ORIENTATION_DEGREE_270)
-				temp_value = 2;
-			else
-				temp_value = 0;
-			data0 &= 0x3F;
-			data0 |= (temp_value << 6);
-			break;
-		case Touch_Aim_Sensitivity:
-			temp_value = xiaomi_touch_interfaces
-					     .touch_mode[Touch_Aim_Sensitivity]
-							[SET_CUR_VALUE];
-			data1 &= 0xC7;
-			data1 |= (temp_value << 3);
-			break;
-		case Touch_Tap_Stability:
-			temp_value = xiaomi_touch_interfaces
-					     .touch_mode[Touch_Tap_Stability]
-							[SET_CUR_VALUE];
-			data1 &= 0xF8;
-			data1 |= temp_value;
-			break;
-		case Touch_Edge_Filter:
-			temp_value = xiaomi_touch_interfaces
-					     .touch_mode[Touch_Edge_Filter]
-							[SET_CUR_VALUE];
-			/* set edge_filter_corner_size */
-			if (0 == temp_value) {
-				edge_filter_corner_size =
-					GAME_CORNER_SUPPRESSION_NONE;
-			} else if (1 == temp_value) {
-				edge_filter_corner_size =
-					GAME_CORNER_SUPPRESSION_SMALL;
-			} else if (2 == temp_value) {
-				edge_filter_corner_size =
-					GAME_CORNER_SUPPRESSION_MEDIUM;
-			} else if (3 == temp_value) {
-				edge_filter_corner_size =
-					GAME_CORNER_SUPPRESSION_LARGE;
-			}
-			data1 &= 0x3F;
-			data1 |= (temp_value << 6);
-			break;
-		case Touch_Expert_Mode:
-			temp_value = xiaomi_touch_interfaces
-					     .touch_mode[Touch_Expert_Mode]
-							[SET_CUR_VALUE];
-			temp_value = temp_value - 1;
-			if (expert_mode) {
-				data0 &= 0xF8;
-				data0 |=
-					(u8)goodix_core_data->board_data
-						.touch_expert_array
-							[temp_value *
-								 GAME_ARRAY_LEN +
-							 1];
-				data0 &= 0xC7;
-				data0 |= (u8)(goodix_core_data->board_data
-						      .touch_expert_array
-							      [temp_value *
-							       GAME_ARRAY_LEN]
-					      << 3);
-				data1 &= 0xC7;
-				data1 |=
-					(u8)(goodix_core_data->board_data
-						     .touch_expert_array
-							     [temp_value *
-								      GAME_ARRAY_LEN +
-							      2]
-					     << 3);
-				data1 &= 0xF8;
-				data1 |=
-					(u8)goodix_core_data->board_data
-						.touch_expert_array
-							[temp_value *
-								 GAME_ARRAY_LEN +
-							 3];
-			}
-			break;
-		default:
-			/* Don't support */
-			break;
-		};
-	}
-	if (false == atomic_read(&goodix_core_data->suspended)) {
-		if (goodix_core_data->gamemode_enabled) {
-			if (game_edge_update_falg) {
-				/* Computing and Deliver Game Mode Edge Suppression Parameters */
-				/*ts_info("Update edge suppression data[] in game mode");*/
-				goodix_set_edge_filter_game(
-					edge_filter_corner_size);
-			}
-			ret = hw_ops->game(goodix_core_data, data0, data1);
-			game_edge_update_falg = false;
-			if (ret < 0) {
-				ts_err("send game mode fail");
-			}
-		} else {
-			ts_info("Game mode off, do not update edge suppression data in gamemode, gamemode_enabled = %d",
-				goodix_core_data->gamemode_enabled);
-		}
-	} else
-		ts_info("Touch suspended, do not update game edge suppression parmas");
-
-	mutex_unlock(&goodix_core_data->core_mutex);
-	return;
-}
-
-static int goodix_set_cur_value(int gtp_mode, int gtp_value)
-{
-	int ret = 0;
-	struct goodix_ts_core *cd = goodix_core_data;
-
-	cd->gtp_mode = gtp_mode;
-	cd->gtp_value = gtp_value;
-	if (cd->gtp_mode == Touch_Panel_Orientation) {
-		cd->gtp_direction_value = gtp_value;
-	}
-	/*解决屏幕方向在设置双击唤醒AOD等功能后灭屏再亮屏下发不对的问题*/
-	ts_info("mode:%d, value:%d", gtp_mode, gtp_value);
-	if (!goodix_core_data ||
-	    goodix_core_data->init_stage != CORE_INIT_STAGE2) {
-		ts_err("initialization not completed, return");
-		return 0;
-	}
-	if (gtp_mode == Touch_Doubletap_Mode && goodix_core_data &&
-	    gtp_value >= 0) {
-		goodix_core_data->double_wakeup = gtp_value;
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-		return 0;
-	}
-	if (gtp_mode == Touch_Aod_Enable && goodix_core_data &&
-	    gtp_value >= 0) {
-		goodix_core_data->aod_status = gtp_value;
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-		return 0;
-	}
-	if (gtp_mode == Touch_Fod_Enable && goodix_core_data &&
-	    gtp_value >= 0) {
-		goodix_core_data->fod_status = gtp_value;
-		ts_info("Touch_Fod_Enable value [%d]\n", gtp_value);
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-		return 0;
-	}
-	if (gtp_mode == Touch_FodIcon_Enable && goodix_core_data &&
-	    gtp_value >= 0) {
-		goodix_core_data->fod_icon_status = gtp_value;
-		ts_info("Touch_FodIcon_Enable value [%d]\n", gtp_value);
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-		return 0;
-	}
-
-	if (gtp_mode == Touch_Power_Status && goodix_core_data &&
-	    gtp_value >= 0) {
-		ts_info("Touch_Power_Status value [%d]\n", gtp_value);
-		if (gtp_value) {
-			ts_info("SuperWallpaper out");
-			queue_work(cd->event_wq, &cd->resume_work);
-		} else if (!gtp_value) {
-			queue_work(cd->event_wq, &cd->suspend_work);
-			ts_info("SuperWallpaper in");
-		}
-		return 0;
-	}
-
-	if (gtp_mode == Touch_Nonui_Mode && goodix_core_data &&
-	    gtp_value >= 0) {
-		goodix_core_data->nonui_status = gtp_value;
-		ts_info("Touch_Nonui_Mode value [%d]\n", gtp_value);
-		queue_work(goodix_core_data->gesture_wq,
-			   &goodix_core_data->gesture_work);
-		return 0;
-	}
-	/*
-	if (gtp_mode ==  Touch_Game_Mode && goodix_core_data && gtp_value >= 0) {
-		ts_info("Touch_Game_Mode value [%d]\n",gtp_value );
-		goodix_core_data->gamemode_enabled = gtp_value > 0 ? true : false;
-		queue_work(goodix_core_data->game_wq, &goodix_core_data->game_work);
-		return 0;
-	}
-    */
-
-	if (gtp_mode >= Touch_Mode_NUM) {
-		ts_err("gtp mode is error:%d", gtp_mode);
-		return -EINVAL;
-	}
-
-	xiaomi_touch_interfaces.touch_mode[gtp_mode][SET_CUR_VALUE] = gtp_value;
-
-	if (xiaomi_touch_interfaces.touch_mode[gtp_mode][SET_CUR_VALUE] >
-	    xiaomi_touch_interfaces.touch_mode[gtp_mode][GET_MAX_VALUE]) {
-		xiaomi_touch_interfaces.touch_mode[gtp_mode][SET_CUR_VALUE] =
-			xiaomi_touch_interfaces
-				.touch_mode[gtp_mode][GET_MAX_VALUE];
-
-	} else if (xiaomi_touch_interfaces.touch_mode[gtp_mode][SET_CUR_VALUE] <
-		   xiaomi_touch_interfaces.touch_mode[gtp_mode][GET_MIN_VALUE]) {
-		xiaomi_touch_interfaces.touch_mode[gtp_mode][SET_CUR_VALUE] =
-			xiaomi_touch_interfaces
-				.touch_mode[gtp_mode][GET_MIN_VALUE];
-	}
-
-	if (gtp_mode <=
-	    Touch_Panel_Orientation) { /*power state no need call game work*/
-		if (gtp_mode == Touch_Game_Mode && goodix_core_data &&
-		    gtp_value >= 0) {
-			ts_info("Touch_Game_Mode value [%d]\n", gtp_value);
-			goodix_core_data->gamemode_enabled =
-				gtp_value > 0 ? true : false;
-		}
-		queue_work(goodix_core_data->game_wq,
-			   &goodix_core_data->game_work);
-	} else {
-		xiaomi_touch_interfaces.touch_mode[gtp_mode][GET_CUR_VALUE] =
-			xiaomi_touch_interfaces
-				.touch_mode[gtp_mode][SET_CUR_VALUE];
-	}
-	return ret;
-}
-
-static int goodix_set_mode_long_value(int mode, int len, int *buf)
-{
-	int i = 0;
-	struct goodix_ts_core *cd = goodix_core_data;
-
-	if (len <= 0)
-		return -EIO;
-
-	ts_info("enter set_mode_long : %s, mode: %d, len: %d\n", __func__, mode,
-		len);
-	if (!goodix_core_data ||
-	    goodix_core_data->init_stage != CORE_INIT_STAGE2) {
-		ts_err("initialization not completed, return");
-		return 0;
-	}
-
-	mutex_lock(&goodix_modules.mutex);
-	xiaomi_touch_interfaces.long_mode_len = len;
-	for (i = 0; i < len; i++) {
-		xiaomi_touch_interfaces.long_mode_value[i] = buf[i];
-	}
-#ifdef GRIP_MODE_DEBUG
-	for (i = 0; i < len; i = i + 8) {
-		ts_info("long_mode_value[0~7] = %d, %d, %d, %d, %d, %d, %d, %d\n",
-			xiaomi_touch_interfaces.long_mode_value[i],
-			xiaomi_touch_interfaces.long_mode_value[i + 1],
-			xiaomi_touch_interfaces.long_mode_value[i + 2],
-			xiaomi_touch_interfaces.long_mode_value[i + 3],
-			xiaomi_touch_interfaces.long_mode_value[i + 4],
-			xiaomi_touch_interfaces.long_mode_value[i + 5],
-			xiaomi_touch_interfaces.long_mode_value[i + 6],
-			xiaomi_touch_interfaces.long_mode_value[i + 7]);
-	}
-#endif
-	mutex_unlock(&goodix_modules.mutex);
-
-	if (mode == Touch_Grip_Mode) {
-		if (true == atomic_read(&cd->suspended)) {
-			msleep(35);
-			/* If suspended, shield the upper layer to set the normal mode edge suppression function */
-			if (false == atomic_read(&cd->suspended))
-				goto normal_send;
-			else
-				ts_info("Touch suspended, do not update edge suppression parmas");
-			goto out;
-		} else
-			goto normal_send;
-	} else
-		goto out;
-normal_send:
-	/*brl_edge_normal_already = true;*/
-	if (cd->gamemode_enabled) {
-		ts_info("%s in gamemode, can't write parameters to touch ic\n",
-			__func__);
-		goto out;
-	} else {
-		if (cd->work_status != TP_NORMAL)
-			msleep(55);
-		/*ts_info("send normal edge data in set_mode_long_value");*/
-		goodix_set_edge_filter_normal();
-		brl_Edge_suppression(cd);
-	}
-out:
-	return 0;
-}
-
-#define CORNER_ZONE_TYPE 0
-#define EDGE_ZONE_TYPE 1
-#define DEAD_ZONE_TYPE 2
-#define GTP_PARAMETER_NUM 8
-int cornerzone = 0;
-
-void goodix_set_grip_filter(int *source, int *sum)
-{
-	struct goodix_ts_core *cd = goodix_core_data;
-	int i = 0, type = 0, pos = 0, x_start = 0, y_start = 0, x_end = 0,
-	    y_end = 0;
-	/*for grip mode, the format from framework is :
-	* len:the num of the commond, rect_num * parameters_num_for_each_rect
-	 * type:dead grip, or edge grip or cornero grip
-	 * pos: which corner or which edge
-	 * sum_type_pos: set type to high pos to low
-	 * x start
-	 * y start
-	 * x end
-	 * y end
-	 * time
-	 * sum: the sum of below
-	 * node num
-	  */
-
-	int *buf = source;
-	int sum_type_pos = 0;
-	*sum = 0;
-	cd->edge_data.Length[0] = 130;
-
-	for (i = 0; i < 4; i++) {
-		buf = source + GTP_PARAMETER_NUM * i;
-		type = *buf;
-		pos = *(buf + 1);
-		sum_type_pos = type << 8 | pos;
-		x_start = *(buf + 2);
-		y_start = *(buf + 3);
-		x_end = *(buf + 4);
-		y_end = *(buf + 5);
-
-		ts_info("grip_type: %d, grip_pos: %d, x_start: %d, y_start: %d, x_end: %d, y_end: %d\n",
-			type, pos, x_start, y_start, x_end, y_end);
-		if (type == DEAD_ZONE_TYPE) {
-			/* Calculate data based on dead zone suppression parameters, i:pos*/
-			if (i == 0) {
-				cd->edge_data.Top_DeadArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Top_DeadArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Top_DeadArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Top_DeadArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Top_DeadArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Top_DeadArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Top_DeadArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Top_DeadArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 1) {
-				cd->edge_data.Bot_DeadArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Bot_DeadArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Bot_DeadArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Bot_DeadArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Bot_DeadArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Bot_DeadArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Bot_DeadArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Bot_DeadArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 2) {
-				cd->edge_data.Left_DeadArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Left_DeadArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Left_DeadArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Left_DeadArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Left_DeadArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Left_DeadArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Left_DeadArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Left_DeadArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 3) {
-				cd->edge_data.Right_DeadArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Right_DeadArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Right_DeadArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Right_DeadArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Right_DeadArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Right_DeadArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Right_DeadArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Right_DeadArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			}
-		} else if (type == EDGE_ZONE_TYPE) {
-			/* Calculate data based on edge zone suppression parameters, i:pos*/
-			if (i == 0) {
-				cd->edge_data.Top_ClickArea_MaxX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Top_ClickArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Top_ClickArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Top_ClickArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Top_ClickArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Top_ClickArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Top_ClickArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Top_ClickArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 1) {
-				cd->edge_data.Bot_ClickArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Bot_ClickArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Bot_ClickArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Bot_ClickArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Bot_ClickArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Bot_ClickArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Bot_ClickArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Bot_ClickArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 2) {
-				cd->edge_data.Left_ClickArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Left_ClickArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Left_ClickArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Left_ClickArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Left_ClickArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Left_ClickArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Left_ClickArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Left_ClickArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 3) {
-				cd->edge_data.Right_ClickArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Right_ClickArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Right_ClickArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Right_ClickArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Right_ClickArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Right_ClickArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Right_ClickArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Right_ClickArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			}
-		} else if (type == CORNER_ZONE_TYPE && cornerzone == 1) {
-			/* Calculate data based on corner zone suppression case1 parameters, i:pos*/
-			if (i == 0) {
-				cd->edge_data.Top_CornerArea_MaxX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Top_CornerArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Top_CornerArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Top_CornerArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Top_CornerArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Top_CornerArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Top_CornerArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Top_CornerArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 1) {
-				cd->edge_data.Bot_CornerArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Bot_CornerArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Bot_CornerArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Bot_CornerArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Bot_CornerArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Bot_CornerArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Bot_CornerArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Bot_CornerArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 2) {
-				cd->edge_data.Left_CornerArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Left_CornerArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Left_CornerArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Left_CornerArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Left_CornerArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Left_CornerArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Left_CornerArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Left_CornerArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 3) {
-				cd->edge_data.Right_CornerArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Right_CornerArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Right_CornerArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Right_CornerArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Right_CornerArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Right_CornerArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Right_CornerArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Right_CornerArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			}
-		} else if (type == CORNER_ZONE_TYPE && cornerzone == 2) {
-			/* Calculate data based on corner zone suppression case2 parameters, i:pos*/
-			if (i == 0) {
-				cd->edge_data.Top_GameCornerArea_MaxX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Top_GameCornerArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Top_GameCornerArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Top_GameCornerArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Top_GameCornerArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Top_GameCornerArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Top_GameCornerArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Top_GameCornerArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 1) {
-				cd->edge_data.Bot_GameCornerArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Bot_GameCornerArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Bot_GameCornerArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Bot_GameCornerArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Bot_GameCornerArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Bot_GameCornerArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Bot_GameCornerArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Bot_GameCornerArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 2) {
-				cd->edge_data.Left_GameCornerArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Left_GameCornerArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Left_GameCornerArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Left_GameCornerArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Left_GameCornerArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Left_GameCornerArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Left_GameCornerArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Left_GameCornerArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			} else if (i == 3) {
-				cd->edge_data.Right_GameCornerArea_MinX[0] =
-					(x_start & 0xff);
-				cd->edge_data.Right_GameCornerArea_MinX[1] =
-					((x_start >> 8) & 0xff);
-				cd->edge_data.Right_GameCornerArea_MinY[0] =
-					(y_start & 0xff);
-				cd->edge_data.Right_GameCornerArea_MinY[1] =
-					((y_start >> 8) & 0xff);
-				cd->edge_data.Right_GameCornerArea_MaxX[0] =
-					(x_end & 0xff);
-				cd->edge_data.Right_GameCornerArea_MaxX[1] =
-					((x_end >> 8) & 0xff);
-				cd->edge_data.Right_GameCornerArea_MaxY[0] =
-					(y_end & 0xff);
-				cd->edge_data.Right_GameCornerArea_MaxY[1] =
-					((y_end >> 8) & 0xff);
-			}
-		}
-		*sum += sum_type_pos + x_start + y_start + x_end + y_end;
-	}
-	cornerzone = 0;
-	/*ts_info("sum = %d",*sum);*/
-}
-
-/**
-* @description:	Game mode edge suppression parameters & data calculation,
-*				Tips:Edge suppression parameter will not be affected by the super-resolution feature
-* @param edge_filter_corner_size -	GAME_CORNER_SUPPRESSION_NONE	0
-*									GAME_CORNER_SUPPRESSION_SMALL 	100
-*									GAME_CORNER_SUPPRESSION_MEDIUM 	170
-*									GAME_CORNER_SUPPRESSION_LARGE 	250
-*/
-void goodix_set_edge_filter_game(int edge_filter_corner_size)
-{
-	int sum_corner = 0, sum_cornergame = 0, sum_edge = 0, sum_dead = 0;
-	/* PANEL_ORIENTATION_DEGREE_0 PANEL_ORIENTATION_DEGREE_90 PANEL_ORIENTATION_DEGREE_180 PANEL_ORIENTATION_DEGREE_270 */
-	int direction =
-		xiaomi_touch_interfaces
-			.touch_mode[Touch_Panel_Orientation][GET_CUR_VALUE];
-	int deadzone_filter[4 * GTP_PARAMETER_NUM] = { 0 };
-	int edgezone_filter[4 * GTP_PARAMETER_NUM] = { 0 };
-	int cornerzone_filter[4 * GTP_PARAMETER_NUM] = { 0 };
-	int i = 0;
-
-	/*ts_info("edge_filter_game params:edge_filter_corner_size = %d, direction = %d", edge_filter_corner_size, direction);*/
-	ts_info("deadzone");
-	/* zero */
-	/*memset(deadzone_filter,0,sizeof(deadzone_filter));*/
-	for (i = 0; i < 4; i++) { /* grip_type & grip_pos */
-		deadzone_filter[i * GTP_PARAMETER_NUM] = DEAD_ZONE_TYPE;
-		deadzone_filter[1 + i * GTP_PARAMETER_NUM] = i;
-	}
-	goodix_set_grip_filter((int *)&(deadzone_filter[0]), &sum_dead);
-
-	ts_info("edgezone");
-	for (i = 0; i < 4; i++) { /* grip_type & grip_pos */
-		edgezone_filter[i * GTP_PARAMETER_NUM] = EDGE_ZONE_TYPE;
-		edgezone_filter[1 + i * GTP_PARAMETER_NUM] = i;
-	}
-	if ((PANEL_ORIENTATION_DEGREE_90 == direction) ||
-	    (PANEL_ORIENTATION_DEGREE_270 == direction)) {
-		ts_info("direction: %d, edge long side: %d, edge short side: %d",
-			direction, GAME_EDGE_SUPPRESSION_LONGSIDE_90_270,
-			GAME_EDGE_SUPPRESSION_SHORTSIDE_90_270);
-		/* pos 0 Top*/
-		edgezone_filter[2] = 0;
-		edgezone_filter[3] = 0;
-		edgezone_filter[4] = PANEL_MAX_X;
-		edgezone_filter[5] = GAME_EDGE_SUPPRESSION_SHORTSIDE_90_270;
-		/* pos 1 Bottom*/
-		edgezone_filter[2 + 1 * GTP_PARAMETER_NUM] = 0;
-		edgezone_filter[3 + 1 * GTP_PARAMETER_NUM] =
-			PANEL_MAX_Y - GAME_EDGE_SUPPRESSION_SHORTSIDE_90_270;
-		edgezone_filter[4 + 1 * GTP_PARAMETER_NUM] = PANEL_MAX_X;
-		edgezone_filter[5 + 1 * GTP_PARAMETER_NUM] = PANEL_MAX_Y;
-		/* pos 2 Left*/
-		edgezone_filter[2 + 2 * GTP_PARAMETER_NUM] = 0;
-		edgezone_filter[3 + 2 * GTP_PARAMETER_NUM] = 0;
-		edgezone_filter[4 + 2 * GTP_PARAMETER_NUM] =
-			GAME_EDGE_SUPPRESSION_LONGSIDE_90_270;
-		edgezone_filter[5 + 2 * GTP_PARAMETER_NUM] = PANEL_MAX_Y;
-		/* pos 3 Right*/
-		edgezone_filter[2 + 3 * GTP_PARAMETER_NUM] =
-			PANEL_MAX_X - GAME_EDGE_SUPPRESSION_LONGSIDE_90_270;
-		edgezone_filter[3 + 3 * GTP_PARAMETER_NUM] = 0;
-		edgezone_filter[4 + 3 * GTP_PARAMETER_NUM] = PANEL_MAX_X;
-		edgezone_filter[5 + 3 * GTP_PARAMETER_NUM] = PANEL_MAX_Y;
-	} else if ((PANEL_ORIENTATION_DEGREE_0 == direction) ||
-		   (PANEL_ORIENTATION_DEGREE_180 == direction)) {
-		ts_info("direction: %d, edge long side: %d, edge short side: %d",
-			direction, GAME_EDGE_SUPPRESSION_LONGSIDE_0_180,
-			GAME_EDGE_SUPPRESSION_SHORTSIDE_0_180);
-		/* pos 0 Top*/
-		edgezone_filter[2] = 0;
-		edgezone_filter[3] = 0;
-		edgezone_filter[4] = PANEL_MAX_X;
-		edgezone_filter[5] = GAME_EDGE_SUPPRESSION_SHORTSIDE_0_180;
-		/* pos 1 Bottom*/
-		edgezone_filter[2 + 1 * GTP_PARAMETER_NUM] = 0;
-		edgezone_filter[3 + 1 * GTP_PARAMETER_NUM] =
-			PANEL_MAX_Y - GAME_EDGE_SUPPRESSION_SHORTSIDE_0_180;
-		edgezone_filter[4 + 1 * GTP_PARAMETER_NUM] = PANEL_MAX_X;
-		edgezone_filter[5 + 1 * GTP_PARAMETER_NUM] = PANEL_MAX_Y;
-		/* pos 2 Left*/
-		edgezone_filter[2 + 2 * GTP_PARAMETER_NUM] = 0;
-		edgezone_filter[3 + 2 * GTP_PARAMETER_NUM] = 0;
-		edgezone_filter[4 + 2 * GTP_PARAMETER_NUM] =
-			GAME_EDGE_SUPPRESSION_LONGSIDE_0_180;
-		edgezone_filter[5 + 2 * GTP_PARAMETER_NUM] = PANEL_MAX_Y;
-		/* pos 3 Right*/
-		edgezone_filter[2 + 3 * GTP_PARAMETER_NUM] =
-			PANEL_MAX_X - GAME_EDGE_SUPPRESSION_LONGSIDE_0_180;
-		edgezone_filter[3 + 3 * GTP_PARAMETER_NUM] = 0;
-		edgezone_filter[4 + 3 * GTP_PARAMETER_NUM] = PANEL_MAX_X;
-		edgezone_filter[5 + 3 * GTP_PARAMETER_NUM] = PANEL_MAX_Y;
-	}
-	goodix_set_grip_filter((int *)&(edgezone_filter[0]), &sum_edge);
-
-	ts_info("cornerzone case 1");
-	cornerzone = 1;
-	/*memset(cornerzone_filter,0,sizeof(cornerzone_filter));*/
-	for (i = 0; i < 4; i++) { /* grip_type & grip_pos */
-		cornerzone_filter[i * GTP_PARAMETER_NUM] = CORNER_ZONE_TYPE;
-		cornerzone_filter[1 + i * GTP_PARAMETER_NUM] = i;
-	}
-	if ((edge_filter_corner_size != 0) ||
-	    (PANEL_ORIENTATION_DEGREE_0 == direction) ||
-	    (PANEL_ORIENTATION_DEGREE_180 == direction)) {
-		if (PANEL_ORIENTATION_DEGREE_90 == direction) {
-			ts_info("direction: %d, edge_filter_corner_size: %d",
-				direction, edge_filter_corner_size);
-			/* pos 0 */
-			cornerzone_filter[2] = 0;
-			cornerzone_filter[3] = 0;
-			cornerzone_filter[4] = edge_filter_corner_size;
-			cornerzone_filter[5] = edge_filter_corner_size;
-			/* pos 2 */
-			cornerzone_filter[2 + 2 * GTP_PARAMETER_NUM] = 0;
-			cornerzone_filter[3 + 2 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y - edge_filter_corner_size;
-			cornerzone_filter[4 + 2 * GTP_PARAMETER_NUM] =
-				edge_filter_corner_size;
-			cornerzone_filter[5 + 2 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y;
-		} else if (PANEL_ORIENTATION_DEGREE_270 == direction) {
-			ts_info("direction: %d, edge_filter_corner_size: %d",
-				direction, edge_filter_corner_size);
-			/* pos 1 */
-			cornerzone_filter[2 + 1 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X - edge_filter_corner_size;
-			cornerzone_filter[3 + 1 * GTP_PARAMETER_NUM] = 0;
-			cornerzone_filter[4 + 1 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X;
-			cornerzone_filter[5 + 1 * GTP_PARAMETER_NUM] =
-				edge_filter_corner_size;
-			/* pos 3 */
-			cornerzone_filter[2 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X - edge_filter_corner_size;
-			cornerzone_filter[3 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y - edge_filter_corner_size;
-			cornerzone_filter[4 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X;
-			cornerzone_filter[5 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y;
-		} else if (PANEL_ORIENTATION_DEGREE_0 == direction) {
-			ts_info("direction: %d, edge_filter_corner_size_shuping: 150*300",
-				direction);
-			/* pos 2 */
-			cornerzone_filter[2 + 2 * GTP_PARAMETER_NUM] = 0;
-			cornerzone_filter[3 + 2 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y -
-				VERTICAL_GAME_CORNER_SUPPRESSION_Y;
-			cornerzone_filter[4 + 2 * GTP_PARAMETER_NUM] =
-				VERTICAL_GAME_CORNER_SUPPRESSION_X;
-			cornerzone_filter[5 + 2 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y;
-			/* pos 3 */
-			cornerzone_filter[2 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X -
-				VERTICAL_GAME_CORNER_SUPPRESSION_X;
-			cornerzone_filter[3 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y -
-				VERTICAL_GAME_CORNER_SUPPRESSION_Y;
-			cornerzone_filter[4 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X;
-			cornerzone_filter[5 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y;
-		} else if (PANEL_ORIENTATION_DEGREE_180 == direction) {
-			ts_info("direction: %d, edge_filter_corner_size_shuping: 150*300",
-				direction);
-			/* pos 0 */
-			cornerzone_filter[2] = 0;
-			cornerzone_filter[3] = 0;
-			cornerzone_filter[4] =
-				VERTICAL_GAME_CORNER_SUPPRESSION_X;
-			cornerzone_filter[5] =
-				VERTICAL_GAME_CORNER_SUPPRESSION_Y;
-			/* pos 1 */
-			cornerzone_filter[2 + 1 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X -
-				VERTICAL_GAME_CORNER_SUPPRESSION_X;
-			cornerzone_filter[3 + 1 * GTP_PARAMETER_NUM] = 0;
-			cornerzone_filter[4 + 1 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X;
-			cornerzone_filter[5 + 1 * GTP_PARAMETER_NUM] =
-				VERTICAL_GAME_CORNER_SUPPRESSION_Y;
-		}
-	}
-	goodix_set_grip_filter((int *)&(cornerzone_filter[0]), &sum_corner);
-
-	ts_info("cornerzone case 2");
-	cornerzone = 2;
-	if ((PANEL_ORIENTATION_DEGREE_0 == direction) ||
-	    (PANEL_ORIENTATION_DEGREE_180 == direction))
-		memset(cornerzone_filter, 0, sizeof(cornerzone_filter));
-	/*角落抑制case1和case2共用一个数组 设置case2必须先把case1设置的清除防止竖屏游戏带来的问题*/
-	for (i = 0; i < 4; i++) { /* grip_type & grip_pos */
-		cornerzone_filter[i * GTP_PARAMETER_NUM] = CORNER_ZONE_TYPE;
-		cornerzone_filter[1 + i * GTP_PARAMETER_NUM] = i;
-	}
-	if (edge_filter_corner_size != 0) {
-		if (PANEL_ORIENTATION_DEGREE_90 == direction) {
-			ts_info("direction: %d, edge_filter_corner_size: %d",
-				direction, GAME_CORNER_SUPPRESSION_HOR);
-			/* pos 0 */
-			cornerzone_filter[2] = 0;
-			cornerzone_filter[3] = 0;
-			cornerzone_filter[4] = GAME_CORNER_SUPPRESSION_HOR;
-			cornerzone_filter[5] = GAME_CORNER_SUPPRESSION_VER;
-			/* pos 2 */
-			cornerzone_filter[2 + 2 * GTP_PARAMETER_NUM] = 0;
-			cornerzone_filter[3 + 2 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y - GAME_CORNER_SUPPRESSION_VER;
-			cornerzone_filter[4 + 2 * GTP_PARAMETER_NUM] =
-				GAME_CORNER_SUPPRESSION_HOR;
-			cornerzone_filter[5 + 2 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y;
-		} else if (PANEL_ORIENTATION_DEGREE_270 == direction) {
-			ts_info("direction: %d, edge_filter_corner_size: %d",
-				direction, GAME_CORNER_SUPPRESSION_HOR);
-			/* pos 1 */
-			cornerzone_filter[2 + 1 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X - GAME_CORNER_SUPPRESSION_HOR;
-			cornerzone_filter[3 + 1 * GTP_PARAMETER_NUM] = 0;
-			cornerzone_filter[4 + 1 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X;
-			cornerzone_filter[5 + 1 * GTP_PARAMETER_NUM] =
-				GAME_CORNER_SUPPRESSION_VER;
-			/* pos 3 */
-			cornerzone_filter[2 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X - GAME_CORNER_SUPPRESSION_VER;
-			cornerzone_filter[3 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y - GAME_CORNER_SUPPRESSION_HOR;
-			cornerzone_filter[4 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_X;
-			cornerzone_filter[5 + 3 * GTP_PARAMETER_NUM] =
-				PANEL_MAX_Y;
-		}
-	}
-	goodix_set_grip_filter((int *)&(cornerzone_filter[0]), &sum_cornergame);
-}
-
-void goodix_set_edge_filter_normal(void)
-{
-	int sum_corner = 0, sum_edge = 0, sum_dead = 0, sum_cornergame = 0;
-	struct goodix_xiaomi_board_data *bdata =
-		&goodix_core_data->goodix_xiaomi_board_data;
-
-	ts_info("deadzone");
-	goodix_set_grip_filter(
-		(int *)&(xiaomi_touch_interfaces.long_mode_value[0]),
-		&sum_dead);
-	ts_info("edgezone");
-	goodix_set_grip_filter(
-		(int *)&(xiaomi_touch_interfaces
-				 .long_mode_value[4 * GTP_PARAMETER_NUM]),
-		&sum_edge);
-
-	ts_info("cornerzone");
-	cornerzone = 1;
-	goodix_set_grip_filter(
-		(int *)&(xiaomi_touch_interfaces
-				 .long_mode_value[2 * 4 * GTP_PARAMETER_NUM]),
-		&sum_corner);
-
-	ts_info("cornerzonecase2 reset");
-	cornerzone = 2;
-	goodix_set_grip_filter(
-		(int *)&(xiaomi_touch_interfaces
-				 .long_mode_value[3 * 4 * GTP_PARAMETER_NUM]),
-		&sum_cornergame);
-
-	bdata->check_sum = -(sum_corner + sum_edge + sum_dead + sum_cornergame);
-}
-
-static int goodix_get_mode_value(int mode, int value_type)
-{
-	int value = -1;
-
-	if (mode < Touch_Mode_NUM && mode >= 0)
-		value = xiaomi_touch_interfaces.touch_mode[mode][value_type];
-	else
-		ts_err("don't support");
-
-	return value;
-}
-
-static int goodix_get_mode_all(int mode, int *value)
-{
-	if (mode < Touch_Mode_NUM && mode >= 0) {
-		value[0] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_CUR_VALUE];
-		value[1] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_DEF_VALUE];
-		value[2] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE];
-		value[3] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE];
-	} else {
-		ts_err("don't support");
-	}
-	ts_info("mode:%d, value:%d:%d:%d:%d", mode, value[0], value[1],
-		value[2], value[3]);
-	return 0;
-}
-
-static int goodix_reset_mode(int mode)
-{
-	int i = 0;
-
-	ts_info("mode:%d", mode);
-	if (mode < Touch_Mode_NUM && mode > 0) {
-		xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_DEF_VALUE];
-		queue_work(goodix_core_data->game_wq,
-			   &goodix_core_data->game_work);
-	} else if (mode == 0) {
-		if (goodix_core_data) {
-			/*进退游戏模式除了在set_cur_value中还在reset_mode中*/
-			ts_info("Touch_Game_Mode value by Reset mode is 0\n");
-			goodix_core_data->gamemode_enabled = false;
-		}
-		for (i = 0; i <= Touch_Panel_Orientation; i++) {
-			if (i == Touch_Panel_Orientation)
-				xiaomi_touch_interfaces
-					.touch_mode[i][SET_CUR_VALUE] =
-					xiaomi_touch_interfaces
-						.touch_mode[i][SET_CUR_VALUE];
-			else {
-				xiaomi_touch_interfaces
-					.touch_mode[i][SET_CUR_VALUE] =
-					xiaomi_touch_interfaces
-						.touch_mode[i][GET_DEF_VALUE];
-			}
-		}
-		queue_work(goodix_core_data->game_wq,
-			   &goodix_core_data->game_work);
-	} else {
-		ts_err("don't support");
-	}
-
-	return 0;
-}
-
-static void goodix_init_touchmode_data(void)
-{
-	int i;
-
-	/* Touch Game Mode Switch */
-	xiaomi_touch_interfaces.touch_mode[Touch_Game_Mode][GET_MAX_VALUE] = 1;
-	xiaomi_touch_interfaces.touch_mode[Touch_Game_Mode][GET_MIN_VALUE] = 0;
-	xiaomi_touch_interfaces.touch_mode[Touch_Game_Mode][GET_DEF_VALUE] = 0;
-	xiaomi_touch_interfaces.touch_mode[Touch_Game_Mode][SET_CUR_VALUE] = 0;
-	xiaomi_touch_interfaces.touch_mode[Touch_Game_Mode][GET_CUR_VALUE] = 0;
-
-	/* Acitve Mode */
-	xiaomi_touch_interfaces.touch_mode[Touch_Active_MODE][GET_MAX_VALUE] =
-		1;
-	xiaomi_touch_interfaces.touch_mode[Touch_Active_MODE][GET_MIN_VALUE] =
-		0;
-	xiaomi_touch_interfaces.touch_mode[Touch_Active_MODE][GET_DEF_VALUE] =
-		0;
-	xiaomi_touch_interfaces.touch_mode[Touch_Active_MODE][SET_CUR_VALUE] =
-		0;
-	xiaomi_touch_interfaces.touch_mode[Touch_Active_MODE][GET_CUR_VALUE] =
-		0;
-
-	/* tap sensitivity */
-	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][GET_MAX_VALUE] =
-		4;
-	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][GET_MIN_VALUE] =
-		0;
-	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][GET_DEF_VALUE] =
-		3;
-	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][SET_CUR_VALUE] =
-		3;
-	xiaomi_touch_interfaces.touch_mode[Touch_UP_THRESHOLD][GET_CUR_VALUE] =
-		3;
-
-	/* latency */
-	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][GET_MAX_VALUE] = 4;
-	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][GET_MIN_VALUE] = 0;
-	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][GET_DEF_VALUE] = 2;
-	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][SET_CUR_VALUE] = 2;
-	xiaomi_touch_interfaces.touch_mode[Touch_Tolerance][GET_CUR_VALUE] = 2;
-
-	/* aim sensitivity */
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Aim_Sensitivity][GET_MAX_VALUE] = 4;
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Aim_Sensitivity][GET_MIN_VALUE] = 0;
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Aim_Sensitivity][GET_DEF_VALUE] = 2;
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Aim_Sensitivity][SET_CUR_VALUE] = 2;
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Aim_Sensitivity][GET_CUR_VALUE] = 2;
-	/* tap stability */
-	xiaomi_touch_interfaces.touch_mode[Touch_Tap_Stability][GET_MAX_VALUE] =
-		4;
-	xiaomi_touch_interfaces.touch_mode[Touch_Tap_Stability][GET_MIN_VALUE] =
-		0;
-	xiaomi_touch_interfaces.touch_mode[Touch_Tap_Stability][GET_DEF_VALUE] =
-		2;
-	xiaomi_touch_interfaces.touch_mode[Touch_Tap_Stability][SET_CUR_VALUE] =
-		2;
-	xiaomi_touch_interfaces.touch_mode[Touch_Tap_Stability][GET_CUR_VALUE] =
-		2;
-	/* edge filter */
-	xiaomi_touch_interfaces.touch_mode[Touch_Edge_Filter][GET_MAX_VALUE] =
-		3;
-	xiaomi_touch_interfaces.touch_mode[Touch_Edge_Filter][GET_MIN_VALUE] =
-		0;
-	xiaomi_touch_interfaces.touch_mode[Touch_Edge_Filter][GET_DEF_VALUE] =
-		2;
-	xiaomi_touch_interfaces.touch_mode[Touch_Edge_Filter][SET_CUR_VALUE] =
-		2;
-	xiaomi_touch_interfaces.touch_mode[Touch_Edge_Filter][GET_CUR_VALUE] =
-		2;
-	/* Expert Mode */
-	xiaomi_touch_interfaces.touch_mode[Touch_Expert_Mode][GET_DEF_VALUE] =
-		1;
-	xiaomi_touch_interfaces.touch_mode[Touch_Expert_Mode][GET_CUR_VALUE] =
-		1;
-	xiaomi_touch_interfaces.touch_mode[Touch_Expert_Mode][SET_CUR_VALUE] =
-		1;
-	xiaomi_touch_interfaces.touch_mode[Touch_Expert_Mode][GET_MAX_VALUE] =
-		GAME_ARRAY_SIZE;
-	xiaomi_touch_interfaces.touch_mode[Touch_Expert_Mode][GET_MIN_VALUE] =
-		1;
-	/*Orientation */
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Panel_Orientation][GET_MAX_VALUE] = 3;
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Panel_Orientation][GET_MIN_VALUE] = 0;
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Panel_Orientation][GET_DEF_VALUE] = 0;
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Panel_Orientation][SET_CUR_VALUE] = 0;
-	xiaomi_touch_interfaces
-		.touch_mode[Touch_Panel_Orientation][GET_CUR_VALUE] = 0;
-
-	for (i = 0; i < Touch_Mode_NUM; i++) {
-		ts_info("mode:%d, set cur:%d, get cur:%d, def:%d min:%d max:%d\n",
-			i, xiaomi_touch_interfaces.touch_mode[i][SET_CUR_VALUE],
-			xiaomi_touch_interfaces.touch_mode[i][GET_CUR_VALUE],
-			xiaomi_touch_interfaces.touch_mode[i][GET_DEF_VALUE],
-			xiaomi_touch_interfaces.touch_mode[i][GET_MIN_VALUE],
-			xiaomi_touch_interfaces.touch_mode[i][GET_MAX_VALUE]);
-	}
-}
-
-static u8 goodix_panel_color_read(void)
-{
-	if (!goodix_core_data)
-		return 0;
-
-	return goodix_core_data->lockdown_info[2];
-}
-
-static u8 goodix_panel_vendor_read(void)
-{
-	if (!goodix_core_data)
-		return 0;
-
-	return goodix_core_data->lockdown_info[0];
-}
-
-static u8 goodix_panel_display_read(void)
-{
-	if (!goodix_core_data)
-		return 0;
-
-	return goodix_core_data->lockdown_info[1];
-}
-
-static char goodix_touch_vendor_read(void)
-{
-	return '2';
-}
-
-static int goodix_palm_sensor_write(int value)
-{
-	struct goodix_ts_hw_ops *hw_ops = goodix_core_data->hw_ops;
-	int ret = 0;
-
-	ts_info("palm sensor value : %d", value);
-	if (!goodix_core_data) {
-		ts_err("goodix core data os NULL");
-		return -EINVAL;
-	}
-
-	goodix_core_data->palm_status = value;
-	if (goodix_core_data->work_status == TP_NORMAL)
-		ret = hw_ops->palm_on(goodix_core_data, !!value);
-
-	return ret;
-}
-
-#endif
-
-#ifdef GOODIX_DEBUGFS_ENABLE
-static void tpdbg_suspend(struct goodix_ts_core *core_data, bool enable)
-{
-	if (enable)
-		queue_work(core_data->event_wq, &core_data->suspend_work);
-	else
-		queue_work(core_data->event_wq, &core_data->resume_work);
-}
-
-static int tpdbg_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-
-	return 0;
-}
-
-static ssize_t tpdbg_read(struct file *file, char __user *buf, size_t size,
-			  loff_t *ppos)
-{
-	const char *str =
-		"cmd support as below:\n"
-		"\necho \"irq-disable\" or \"irq-enable\" to ctrl irq\n"
-		"\necho \"tp-suspend-en\" or \"tp-suspend-off\" to ctrl panel in or off suspend status\n"
-		"\necho \"tp-sd-en\" or \"tp-sd-off\" to ctrl panel in or off sleep status\n";
-
-	loff_t pos = *ppos;
-	int len = strlen(str);
-
-	if (pos < 0)
-		return -EINVAL;
-	if (pos >= len)
-		return 0;
-
-	if (copy_to_user(buf, str, len))
-		return -EFAULT;
-
-	*ppos = pos + len;
-
-	return len;
-}
-
-static ssize_t tpdbg_write(struct file *file, const char __user *buf,
-			   size_t size, loff_t *ppos)
-{
-	struct goodix_ts_core *core_data = file->private_data != NULL ?
-						   file->private_data :
-						   goodix_core_data;
-	struct goodix_ts_hw_ops *hw_ops = core_data->hw_ops;
-	char *cmd = kzalloc(size + 1, GFP_KERNEL);
-	int ret = size;
-
-	if (!cmd)
-		return -ENOMEM;
-
-	if (copy_from_user(cmd, buf, size)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	cmd[size] = '\0';
-	if (!strncmp(cmd, "irq-disable", 11))
-		hw_ops->irq_enable(core_data, false);
-	else if (!strncmp(cmd, "irq-enable", 10))
-		hw_ops->irq_enable(core_data, true);
-	else if (!strncmp(cmd, "tp-sd-en", 8))
-		tpdbg_suspend(core_data, true);
-	else if (!strncmp(cmd, "tp-sd-off", 9))
-		tpdbg_suspend(core_data, false);
-	else if (!strncmp(cmd, "tp-suspend-en", 13))
-		tpdbg_suspend(core_data, true);
-	else if (!strncmp(cmd, "tp-suspend-off", 14))
-		tpdbg_suspend(core_data, false);
-out:
-	kfree(cmd);
-
-	return ret;
-}
-
-static int tpdbg_release(struct inode *inode, struct file *file)
-{
-	file->private_data = NULL;
-
-	return 0;
-}
-
-static const struct proc_ops tpdbg_operations = {
-	.proc_open = tpdbg_open,
-	.proc_read = tpdbg_read,
-	.proc_write = tpdbg_write,
-	.proc_lseek = default_llseek,
-	.proc_release = tpdbg_release,
-};
-
-static const struct file_operations tpdbg_operations_debug = {
-	.owner = THIS_MODULE,
-	.open = tpdbg_open,
-	.read = tpdbg_read,
-	.write = tpdbg_write,
-	.release = tpdbg_release,
-};
-
-int goodix_tpdebug_proc_init(void)
-{
-	struct proc_dir_entry *entry;
-
-	touch_debug = proc_mkdir_data("tp_debug", 0777, NULL, NULL);
-	if (IS_ERR_OR_NULL(touch_debug))
-		return -ENOMEM;
-	entry = proc_create("switch_state", 0644, touch_debug,
-			    &tpdbg_operations);
-	if (IS_ERR_OR_NULL(entry)) {
-		ts_err("create node fail");
-		remove_proc_entry("tp_debug", NULL);
-		return -ENOMEM;
-	}
-	return 0;
-}
-void goodix_tpdebug_proc_remove(void)
-{
-	remove_proc_entry("switch_state", touch_debug);
-	remove_proc_entry("tp_debug", NULL);
-}
-#endif
 
 /**
  * goodix_ts_probe - called by kernel when Goodix touch
@@ -4445,7 +2383,6 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		core_module_prob_sate = CORE_MODULE_PROB_FAILED;
 		return -ENOMEM;
 	}
-	goodix_core_data = core_data;
 	if (IS_ENABLED(CONFIG_OF) && bus_interface->dev->of_node) {
 		/* parse devicetree property */
 		ret = goodix_parse_dt(bus_interface->dev->of_node,
@@ -4521,93 +2458,18 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	}
 	device_init_wakeup(core_data->bus->dev, 1);
 
-	core_data->tp_lockdown_info_proc = proc_create(
-		"tp_lockdown_info", 0664, NULL, &goodix_lockdown_info_ops);
-	core_data->tp_fw_version_proc = proc_create(
-		"tp_fw_version", 0664, NULL, &goodix_fw_version_info_ops);
-	core_data->tp_selftest_proc =
-		proc_create("tp_selftest", 0664, NULL, &goodix_selftest_ops);
-#ifdef GOODIX_DEBUGFS_ENABLE
-	core_data->debugfs = debugfs_create_dir("tp_debug", NULL);
-	if (core_data->debugfs) {
-		debugfs_create_file("switch_state", 0660, core_data->debugfs,
-				    core_data, &tpdbg_operations_debug);
-	}
-	goodix_tpdebug_proc_init();
-#endif
-
-	if (core_data->goodix_tp_class == NULL) {
-#ifdef GOODIX_XIAOMI_TOUCHFEATURE
-		core_data->goodix_tp_class = get_xiaomi_touch_class();
-#else
-		core_data->goodix_tp_class = class_create(THIS_MODULE, "touch");
-#endif
-		if (core_data->goodix_tp_class) {
-			core_data->goodix_touch_dev =
-				device_create(core_data->goodix_tp_class, NULL,
-					      0x38, core_data, "tp_dev");
-			if (IS_ERR(core_data->goodix_touch_dev)) {
-				ts_err("Failed to create device !\n");
-				goto err_class_create;
-			}
-			dev_set_drvdata(core_data->goodix_touch_dev, core_data);
-			if (sysfs_create_file(&core_data->goodix_touch_dev->kobj,
-					      &dev_attr_fod_test.attr)) {
-				ts_err("Failed to create fod_test sysfs group!\n");
-				goto err_class_create;
-			}
-		}
-	}
-
-#ifdef GOODIX_XIAOMI_TOUCHFEATURE
-	core_data->game_wq =
-		alloc_workqueue("gtp-game-queue",
-				WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
-	if (!core_data->game_wq)
-		ts_err("goodix cannot create game work thread");
-	INIT_WORK(&core_data->game_work, goodix_set_game_work);
-
-	memset(&xiaomi_touch_interfaces, 0x00,
-	       sizeof(struct xiaomi_touch_interface));
-	xiaomi_touch_interfaces.setModeValue = goodix_set_cur_value;
-	xiaomi_touch_interfaces.setModeLongValue = goodix_set_mode_long_value;
-	xiaomi_touch_interfaces.getModeValue = goodix_get_mode_value;
-	xiaomi_touch_interfaces.resetMode = goodix_reset_mode;
-	xiaomi_touch_interfaces.getModeAll = goodix_get_mode_all;
-	xiaomi_touch_interfaces.panel_display_read = goodix_panel_display_read;
-	xiaomi_touch_interfaces.panel_vendor_read = goodix_panel_vendor_read;
-	xiaomi_touch_interfaces.panel_color_read = goodix_panel_color_read;
-	xiaomi_touch_interfaces.touch_vendor_read = goodix_touch_vendor_read;
-	xiaomi_touch_interfaces.palm_sensor_write = goodix_palm_sensor_write;
-
-	xiaomitouch_register_modedata(0, &xiaomi_touch_interfaces);
-	goodix_init_touchmode_data();
-#endif
-
 	/* debug node init */
 	goodix_tools_init();
-	core_data->tp_pm_suspend = false;
-#ifdef CONFIG_FACTORY_BUILD
-	core_data->fod_status = 1;
-#else
-	core_data->fod_status = -1;
-#endif
+
 	init_completion(&core_data->pm_resume_completion);
 	device_init_wakeup(&pdev->dev, 1);
 	if (core_data->init_stage < CORE_INIT_STAGE2)
 		core_data->init_stage = CORE_INIT_STAGE1;
-	/*解决stage初始化线程先跑完再跑这导致init_stage状态机出错的问题*/
-	core_data->charger_status = -1;
-	core_data->report_rate = 240;
 	goodix_modules.core_data = core_data;
 	core_module_prob_sate = CORE_MODULE_PROB_SUCCESS;
 
 	ts_info("goodix_ts_core probe success");
 	return 0;
-
-err_class_create:
-	class_destroy(core_data->goodix_tp_class);
-	core_data->goodix_tp_class = NULL;
 
 err_out:
 	core_data->init_stage = CORE_INIT_FAIL;
@@ -4652,7 +2514,6 @@ static int goodix_ts_remove(struct platform_device *pdev)
 		goodix_ts_pen_dev_remove(core_data);
 		goodix_ts_sysfs_exit(core_data);
 		goodix_ts_procfs_exit(core_data);
-		goodix_tpdebug_proc_remove();
 		goodix_ts_power_off(core_data);
 	}
 

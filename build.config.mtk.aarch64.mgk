@@ -1,5 +1,5 @@
-. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
-. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
+KCFLAGS="${KCFLAGS} -D__ANDROID_COMMON_KERNEL__"
 
 DEVICE_MODULES_PATH="\$(srctree)/\$(DEVICE_MODULES_REL_DIR)"
 DEVCIE_MODULES_INCLUDE="-I\$(DEVICE_MODULES_PATH)/include"

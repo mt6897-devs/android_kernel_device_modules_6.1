@@ -32,6 +32,25 @@ filegroup(
         ]),
 )
 
+genrule(
+    name = "mtk_uapi_tarball",
+    srcs = glob([
+        "include/uapi/**/*.h",
+        "vendor/mediatek/**/include/uapi/**/*.h",
+    ]),
+    outs = ["mtk-uapi-headers.tar.gz"],
+    cmd = """
+        STAGING_DIR=$(@D)/mtk_uapi_staging
+        mkdir -p $$STAGING_DIR/usr/include
+        for f in $(SRCS); do
+            REL_PATH=$${f#*include/uapi/}
+            mkdir -p $$STAGING_DIR/usr/include/$$(dirname $$REL_PATH)
+            cp $$f $$STAGING_DIR/usr/include/$$REL_PATH
+        done
+        tar -czf $@ -C $$STAGING_DIR usr
+    """,
+    visibility = ["//visibility:public"],
+)
 
 # mgk_64_k61
 load("//kernel_device_modules-6.1:kernel/kleaf/mgk_64_k61.bzl",

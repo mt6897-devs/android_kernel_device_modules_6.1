@@ -40,27 +40,27 @@ enum product_name {
 	DUCHAMP_GL,
 };
 
-static int log_level = 1;
+static int log_level = 0;
 static int product_name = PRODUCT_NO;
 static ktime_t time_init = -1;
 
-#define fg_err(fmt, ...)					\
-do {								\
-	if (log_level >= 0)					\
-			printk(KERN_ERR "" fmt, ##__VA_ARGS__);	\
-} while (0)
+#define fg_err(fmt, ...)                                                       \
+	do {                                                                   \
+		if (log_level >= 0)                                            \
+			printk(KERN_ERR "[bq28z610] " fmt, ##__VA_ARGS__);     \
+	} while (0)
 
-#define fg_info(fmt, ...)					\
-do {								\
-	if (log_level >= 1)					\
-			printk(KERN_ERR "" fmt, ##__VA_ARGS__);	\
-} while (0)
+#define fg_info(fmt, ...)                                                      \
+	do {                                                                   \
+		if (log_level >= 1)                                            \
+			printk(KERN_INFO "[bq28z610] " fmt, ##__VA_ARGS__);    \
+	} while (0)
 
-#define fg_dbg(fmt, ...)					\
-do {								\
-	if (log_level >= 2)					\
-			printk(KERN_ERR "" fmt, ##__VA_ARGS__);	\
-} while (0)
+#define fg_dbg(fmt, ...)                                                       \
+	do {                                                                   \
+		if (log_level >= 2)                                            \
+			printk(KERN_DEBUG "[bq28z610] " fmt, ##__VA_ARGS__);   \
+	} while (0)
 
 static struct regmap_config fg_regmap_config = {
 	.reg_bits  = 8,
@@ -75,7 +75,7 @@ static int __fg_read_byte(struct i2c_client *client, u8 reg, u8 *val)
 	ret =  i2c_smbus_read_byte_data(client, reg);
 	if(ret < 0)
 	{
-		fg_info("i2c read byte failed: can't read from reg 0x%02X faild\n", reg);
+		fg_err("i2c read byte failed: can't read from reg 0x%02X faild\n", reg);
 		return ret;
 	}
 
@@ -107,7 +107,7 @@ static int fg_read_word(struct bq_fg_chip *bq, u8 reg, u16 *val)
 
 	ret = regmap_raw_read(bq->regmap, reg, data, 2);
 	if (ret) {
-		fg_info("%s I2C failed to read 0x%02x\n", bq->log_tag, reg);
+		fg_err("%s I2C failed to read 0x%02x\n", bq->log_tag, reg);
 		return ret;
 	}
 
@@ -135,7 +135,7 @@ static int fg_read_block(struct bq_fg_chip *bq, u8 reg, u8 *buf, u8 len)
 	for (i = 0; i < len; i++) {
 		ret = regmap_read(bq->regmap, reg + i, &data);
 		if (ret) {
-			fg_info("%s I2C failed to read 0x%02x\n", bq->log_tag, reg + i);
+			fg_err("%s I2C failed to read 0x%02x\n", bq->log_tag, reg + i);
 			return ret;
 		}
 		buf[i] = data;
@@ -911,7 +911,7 @@ static int bq_battery_soc_smooth_tracking_new(struct bq_fg_chip *bq, int raw_soc
 	rc = power_supply_get_property(bq->batt_psy,
 				POWER_SUPPLY_PROP_STATUS, &pval);
 		if (rc < 0) {
-			fg_info("failed get batt staus\n");
+			fg_err("failed get batt staus\n");
 			return -EINVAL;
 		}
 	charging_status = pval.intval;
@@ -962,7 +962,7 @@ static int bq_battery_soc_smooth_tracking_new(struct bq_fg_chip *bq, int raw_soc
 			break;
 		}
 		}
-		fg_info("enter low temperature smooth unit_time=%d batt_ma_avg=%d\n", unit_time, batt_ma_avg);
+		fg_err("enter low temperature smooth unit_time=%d batt_ma_avg=%d\n", unit_time, batt_ma_avg);
 	}
 
 	if (bq->tbat < BATT_COLD_THRESHOLD)
@@ -2163,7 +2163,7 @@ static int fg_parse_dt(struct bq_fg_chip *bq)
         bq->slave_connect_gpio = of_get_named_gpio(node, "slave_connect_gpio", 0);
           fg_err("%s slave_connect_gpio = %d \n", bq->log_tag, bq->slave_connect_gpio );    
           if (!gpio_is_valid(bq->slave_connect_gpio)) {
-                 fg_info("failed to parse slave_connect_gpio\n");
+                 fg_err("failed to parse slave_connect_gpio\n");
                  return -1;
           }
 
@@ -2231,7 +2231,7 @@ static int fg_check_device(struct bq_fg_chip *bq)
 	/* FG EEPROM Coding Rule V0.04 Update */
 	ret = fg_mac_read_block(bq, FG_MAC_CMD_MANU_NAME, data, 32);
 	if (ret) {
-		fg_info("%s: failed to get FG_MAC_CMD_MANU_NAME, ret=%d\n", __func__,ret);
+		fg_err("%s: failed to get FG_MAC_CMD_MANU_NAME, ret=%d\n", __func__,ret);
 		fg_err("%s: FG_MAC_CMD_MANU_NAME: %s\n", __func__, data);
 	} else {
 		fg_err("%s: FG_MAC_CMD_MANU_NAME: %s\n", __func__, data);
@@ -2281,7 +2281,7 @@ static int fg_check_device(struct bq_fg_chip *bq)
 			strcpy(bq->model_name, "UNKNOWN");
 			strcpy(bq->log_tag, "[XMCHG_UNKNOWN_FG]");
 			bq->chip_ok = false;
-			fg_info("%s: failed to get MI fg.\n", __func__);
+			fg_err("%s: failed to get MI fg.\n", __func__);
 		}
 
 		if(!strncmp(&data[14], "I", 1))
@@ -2303,7 +2303,7 @@ static int fg_check_device(struct bq_fg_chip *bq)
 		}
 	} else {
 		bq->chip_ok = false;
-		fg_info("failed to get MI fg.\n");
+		fg_err("failed to get MI fg.\n");
 	}
 
 	ret = fg_mac_read_block(bq, FG_MAC_CMD_DEVICE_CHEM, data, 32);
@@ -2347,9 +2347,9 @@ static int fg_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	u8 data[5] = {0};
 
 	product_name = DUCHAMP_CN;
-	fg_info("%s: product_name=%d\n", __func__, product_name);
+	fg_dbg("%s: product_name=%d\n", __func__, product_name);
 
-	fg_info("FG probe enter\n");
+	fg_dbg("FG probe enter\n");
 	bq = devm_kzalloc(&client->dev, sizeof(*bq), GFP_DMA);
 	if (!bq)
 		return -ENOMEM;
@@ -2417,7 +2417,7 @@ static int fg_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		fg_err("%s failed to write fastcharge = %d\n", bq->log_tag, ret);
 	}
 
-	fg_info("%s FG probe success\n", bq->log_tag);
+	fg_dbg("%s FG probe success\n", bq->log_tag);
 
 	return 0;
 }
@@ -2462,7 +2462,7 @@ static void fg_shutdown(struct i2c_client *client)
 {
 	struct bq_fg_chip *bq = i2c_get_clientdata(client);
 
-	fg_info("%s bq fuel gauge driver shutdown!\n", bq->log_tag);
+	fg_err("%s bq fuel gauge driver shutdown!\n", bq->log_tag);
 }
 
 static struct of_device_id fg_match_table[] = {

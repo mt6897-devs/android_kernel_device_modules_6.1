@@ -10,5 +10,6 @@ ifneq ($(wildcard $(srctree)/$(src)/k6985v1_64_alpha),)
 obj-$(CONFIG_TOUCHSCREEN_MT6985_ALPHA_SUPPORT) += k6985v1_64_alpha/
 endif
 
+obj-$(CONFIG_TOUCHSCREEN_FOCALTECH_FT3683G)	+= focaltech_3683g/
 obj-$(CONFIG_TOUCHSCREEN_GOODIX_BRL_9916)	+= goodix_9916/
 obj-$(CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE)	+= xiaomi/

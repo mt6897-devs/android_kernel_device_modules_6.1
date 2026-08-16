@@ -595,7 +595,7 @@ static const struct spi_device_id fts_ts_id[] = {
     {},
 };
 static const struct of_device_id fts_dt_match[] = {
-    {.compatible = "focaltech,ft3683g", },
+    {.compatible = "focaltech,n11a-3683g-spi", },
     {},
 };
 MODULE_DEVICE_TABLE(of, fts_dt_match);

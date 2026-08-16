@@ -319,7 +319,7 @@
 /*
  * Numbers of modules support
  */
-#define FTS_GET_MODULE_NUM                      2
+#define FTS_GET_MODULE_NUM                      0
 
 /*
  * module_id: mean vendor_id generally, also maybe gpio or lcm_id...
@@ -328,8 +328,8 @@
  * FTS_GET_MODULE_NUM >= 2, compatible with FTS_MODULE2_ID
  * FTS_GET_MODULE_NUM >= 3, compatible with FTS_MODULE3_ID
  */
-#define FTS_MODULE_ID                           0x00DA
-#define FTS_MODULE2_ID                          0x0044
+#define FTS_MODULE_ID                           0x0000
+#define FTS_MODULE2_ID                          0x0000
 #define FTS_MODULE3_ID                          0x0000
 
 /*
@@ -340,8 +340,8 @@
  * You should rename fw to "focaltech_ts_fw_tianma", and push it into
  * etc/firmware or by customers
  */
-#define FTS_MODULE_NAME                         "boe"
-#define FTS_MODULE2_NAME                        "vxn"
+#define FTS_MODULE_NAME                         ""
+#define FTS_MODULE2_NAME                        ""
 #define FTS_MODULE3_NAME                        ""
 
 /*

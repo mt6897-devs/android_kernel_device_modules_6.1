@@ -48,7 +48,6 @@ enum _ex_mode {
     MODE_EARPHONE,
     MODE_EDGEPALM,
     MODE_FWDBG,
-    MODE_LOW_BATTERY,
     MODE_PALM_TO_SLEEP
 };
 
@@ -118,10 +117,6 @@ static int fts_ex_mode_switch(enum _ex_mode mode, int value)
     case MODE_FWDBG:
         ret = fts_ex_mode_set_reg(FTS_REG_FW_DEBUG_EN, (value ? 0x01 : 0x00));
         if (ret) FTS_ERROR("Set MODE_FWDBG to %d failed", value);
-        break;
-    case MODE_LOW_BATTERY:
-        ret = fts_ex_mode_set_reg(FTS_REG_POWER_LEVEL, (value ? 0x01 : 0x00));
-        if (ret) FTS_ERROR("Set MODE_LOW_BATTERY to %d failed", value);
         break;
     case MODE_PALM_TO_SLEEP:
         FTS_INFO("PalmToSleep Mode %s\n", (value ? "Enable" : "Disable"));
@@ -427,10 +422,6 @@ int fts_ex_mode_recovery(struct fts_ts_data *ts_data)
 
     if (ts_data->fwdbg_support) {
         fts_ex_mode_switch(MODE_FWDBG, ENABLE);
-    }
-
-    if (ts_data->low_battery_mode) {
-        fts_ex_mode_switch(MODE_LOW_BATTERY, ENABLE);
     }
 
     if (ts_data->palm_to_sleep_support) {

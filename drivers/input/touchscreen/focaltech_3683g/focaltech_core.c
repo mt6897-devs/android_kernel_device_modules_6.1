@@ -36,15 +36,15 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/power_supply.h>
-#if defined(CONFIG_DRM_MEDIATEK_V2)
-#include "mtk_disp_notify.h"
+#if IS_ENABLED(CONFIG_MI_DISP_NOTIFIER)
+#include <drm/drm_panel.h>
+#include "mi_disp/mi_disp_notifier.h"
 #elif IS_ENABLED(CONFIG_FB)
 #include <linux/notifier.h>
 #include <linux/fb.h>
 #endif
 
 #include "focaltech_core.h"
-#include "mtk_panel_ext.h"
 
 /*****************************************************************************
 * Private constant and macro definitions using #define
@@ -58,8 +58,6 @@
 #define FTS_IOVCC_VTG_MAX_UV                1800000
 #endif
 
-#define FTS_WAKELOCK_TIMEOUT                5000
-
 /*****************************************************************************
 * Global variable or extern global variabls/functions
 *****************************************************************************/
@@ -68,8 +66,6 @@ struct fts_ts_data *fts_data;
 #if FTS_FOD_EN
 static int fts_fod_recovery(struct fts_ts_data *ts_data);
 #endif
-
-extern unsigned int lcm_now_state;
 
 /*****************************************************************************
 * Static function prototypes
@@ -1315,9 +1311,6 @@ static irqreturn_t fts_irq_handler(int irq, void *data)
     }
 #endif
 
-    if (ts_data->suspended)
-        __pm_wakeup_event(ts_data->p_ws, jiffies_to_msecs(FTS_WAKELOCK_TIMEOUT));
-
     if (ts_data->fhp_mode) {
         fts_fhp_irq_handler(ts_data);
         return IRQ_HANDLED;
@@ -2204,178 +2197,49 @@ static int fts_ts_resume(struct device *dev)
     return 0;
 }
 
+static void fts_suspend_work(struct work_struct *work)
+{
+    struct fts_ts_data *ts_data =
+        container_of(work, struct fts_ts_data, suspend_work);
+    fts_ts_suspend(ts_data->dev);
+}
+
 static void fts_resume_work(struct work_struct *work)
 {
     struct fts_ts_data *ts_data = container_of(work, struct fts_ts_data, resume_work);
     fts_ts_resume(ts_data->dev);
 }
-/*
-static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *v)
+
+int fts_drm_state_change_callback(struct notifier_block *self,
+				  unsigned long event, void *data)
 {
-    struct fts_ts_data *ts_data = container_of(self, struct fts_ts_data, fb_notif);
-    FTS_FUNC_ENTER();
-    if (ts_data && v) {
-#if IS_ENABLED(CONFIG_DRM_MEDIATEK)
-        const unsigned long event_enum[2] = {MTK_DISP_EARLY_EVENT_BLANK, MTK_DISP_EVENT_BLANK};
-        const int blank_enum[2] = {MTK_DISP_BLANK_POWERDOWN, MTK_DISP_BLANK_UNBLANK};
-        int blank_value = *((int *)v);
-#elif IS_ENABLED(CONFIG_FB)
-        const unsigned long event_enum[2] = {FB_EARLY_EVENT_BLANK, FB_EVENT_BLANK};
-        const int blank_enum[2] = {FB_BLANK_POWERDOWN, FB_BLANK_UNBLANK};
-        int blank_value = *((int *)(((struct fb_event *)v)->data));
-#endif
-        FTS_INFO("notifier,event:%lu,blank:%d", event, blank_value);
-        if ((blank_enum[1] == blank_value) && (event_enum[1] == event)) {
-            queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
-        } else if ((blank_enum[0] == blank_value) && (event_enum[0] == event)) {
-            cancel_work_sync(&fts_data->resume_work);
-            fts_ts_suspend(ts_data->dev);
-        } else {
-            FTS_DEBUG("notifier,event:%lu,blank:%d, not care", event, blank_value);
-        }
-    } else {
-        FTS_ERROR("ts_data/v is null");
-        return -EINVAL;
-    }
-    FTS_FUNC_EXIT();
-    return 0;
-}
-*/
-#if IS_ENABLED(CONFIG_DRM_MEDIATEK_V2)
-static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *v)
-{
-    int *data = (int *)v;
-    struct fts_ts_data *ts_data = container_of(self, struct fts_ts_data, disp_notifier);
-    FTS_FUNC_ENTER();
-    if (ts_data && v) {
-        if (event == MTK_DISP_EVENT_BLANK) {
-            /* resume: touch power on is after display to avoid display disturb */
-            FTS_ERROR("event=%lu, MTK_DISP_EVENT_BLANK=%d, lcm_now_state=%d\n", event, MTK_DISP_EVENT_BLANK, lcm_now_state);
-            if (*data == MTK_DISP_BLANK_UNBLANK) {
-                if (lcm_now_state == 1) {
-                    cancel_work_sync(&ts_data->resume_work);
-                    fts_ts_suspend(ts_data->dev);
-                } else {
-                    queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
-                }
+	struct fts_ts_data *core_data =
+		container_of(self, struct fts_ts_data, disp_notifier);
+	struct mi_disp_notifier *evdata = data;
+	int blank;
 
-            }
-        } else if (event == MTK_DISP_EARLY_EVENT_BLANK) {
-            /**
-            * suspend: touch power off is before display to avoid touch report event
-            * after screen is off
-            */
-            FTS_ERROR("event=%lu, MTK_DISP_EARLY_EVENT_BLANK=%d, lcm_now_state=%d\n", event, MTK_DISP_EARLY_EVENT_BLANK, lcm_now_state);
-            if (*data == MTK_DISP_BLANK_POWERDOWN) {
-                cancel_work_sync(&ts_data->resume_work);
-                fts_ts_suspend(ts_data->dev);
-            }
-        }
-    } else {
-        FTS_INFO("ft3683g touch IC can not suspend or resume");
-        return -EINVAL;
-    }
-
-    FTS_FUNC_EXIT();
-    return 0;
-}
-#endif
-
-static int power_level_notifier_callback(struct notifier_block *nb, unsigned long event, void *data)
-{
-    int ret = 0;
-    struct fts_ts_data *ts_data = fts_data;
-    struct power_supply *psy = data;
-    union power_supply_propval prop;
-
-    if (strcmp(psy->desc->name, "battery") == 0) {
-        ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &prop);
-        if (ret < 0) {
-            FTS_ERROR("Couldn't get POWER_SUPPLY_PROP_PRESENT ret=%d\n", ret);
-            return ret;
-        } else {
-            if ((prop.intval >= 5) && (ts_data->low_battery_mode == ENABLE)) {
-                fts_write_reg(FTS_REG_POWER_LEVEL, 0);
-                ts_data->low_battery_mode = DISABLE;
-            }
-            if ((prop.intval < 5) && (ts_data->low_battery_mode == DISABLE)) {
-                fts_write_reg(FTS_REG_POWER_LEVEL, 1);
-                ts_data->low_battery_mode = ENABLE;
-            }
+	if (evdata && evdata->data && core_data) {
+		blank = *(int *)(evdata->data);
+		FTS_INFO("notifier tp event:%lu, code:%d.", event, blank);
+		flush_workqueue(core_data->ts_workqueue);
+		if ((event == MI_DISP_DPMS_EARLY_EVENT ||
+		     event == MI_DISP_DPMS_EVENT) &&
+		    (blank == MI_DISP_DPMS_POWERDOWN ||
+		     blank == MI_DISP_DPMS_LP1 || blank == MI_DISP_DPMS_LP2)) {
+			FTS_INFO("touchpanel suspend by %s",
+				 blank == MI_DISP_DPMS_POWERDOWN ? "blank" :
+								   "doze");
+			queue_work(core_data->ts_workqueue,
+				   &core_data->suspend_work);
+		} else if (event == MI_DISP_DPMS_EVENT &&
+			   blank == MI_DISP_DPMS_ON) {
+			FTS_INFO("touchpanel resume");
+			queue_work(core_data->ts_workqueue,
+				   &core_data->resume_work);
+		}
 	}
-    }
-    return 0;
-}
 
-#if IS_ENABLED(CONFIG_DRM_MEDIATEK_V2)
-/*The function will be called while LCD is recovering*/
-static int fts_tp_reinit(void)
-{
-    struct fts_ts_data *ts_data = fts_data;
-
-    FTS_INFO("tp power on reinit after lcd recovery");
-    if (ts_data->suspended) {
-        FTS_INFO("in suspend state, return");
-        return 0;
-    }
-    //Nothing to do, reserved for special case.
-    //fts_release_all_finger();
-    //fts_tp_state_recovery(ts_data);
-    return 0;
-}
-#endif
-
-static int fts_notifier_callback_init(struct fts_ts_data *ts_data)
-{
-    int ret = 0;
-    FTS_FUNC_ENTER();
-#if IS_ENABLED(CONFIG_DRM_MEDIATEK_V2)
-    FTS_INFO("init notifier with mtk_disp_notifier_register");
-    ts_data->disp_notifier.notifier_call = fb_notifier_callback;
-    ret = mtk_disp_notifier_register("fts_ts_notifier", &ts_data->disp_notifier);
-    if (ret < 0) {
-        FTS_ERROR("[DRM]mtk_disp_notifier_register fail: %d", ret);
-    }
-
-    FTS_INFO("init TP power on reinit!");
-    if (mtk_panel_tch_handle_init()) {
-        void **ret = mtk_panel_tch_handle_init();
-        *ret = (void *)fts_tp_reinit;
-    }
-    
-#elif IS_ENABLED(CONFIG_FB)
-    FTS_INFO("init notifier with fb_register_client");
-    ts_data->fb_notif.notifier_call = fb_notifier_callback;
-    ret = fb_register_client(&ts_data->fb_notif);
-    if (ret) {
-        FTS_ERROR("[FB]Unable to register fb_notifier: %d", ret);
-    }
-#endif
-
-    ts_data->power_level_notifier.notifier_call = power_level_notifier_callback;
-    ret = power_supply_reg_notifier(&ts_data->power_level_notifier);
-    if (ret < 0) {
-        FTS_ERROR("power_level_notifier fail: %d", ret);
-    }
-
-    FTS_FUNC_EXIT();
-    return ret;
-}
-
-static int fts_notifier_callback_exit(struct fts_ts_data *ts_data)
-{
-    FTS_FUNC_ENTER();
-#if IS_ENABLED(CONFIG_DRM_MEDIATEK_V2)
-    if (mtk_disp_notifier_unregister(&ts_data->disp_notifier))
-        FTS_ERROR("[DRM]Error occurred while unregistering disp_notifier.");
-#elif IS_ENABLED(CONFIG_FB)
-    if (fb_unregister_client(&ts_data->fb_notif))
-        FTS_ERROR("[FB]Error occurred while unregistering fb_notifier.");
-#endif
-
-    power_supply_unreg_notifier(&ts_data->power_level_notifier);
-    FTS_FUNC_EXIT();
-    return 0;
+	return 0;
 }
 
 int fts_ts_probe_entry(struct fts_ts_data *ts_data)
@@ -2401,17 +2265,12 @@ int fts_ts_probe_entry(struct fts_ts_data *ts_data)
         FTS_ERROR("create fts workqueue fail");
     } else {
         INIT_WORK(&ts_data->resume_work, fts_resume_work);
+        INIT_WORK(&ts_data->suspend_work, fts_suspend_work);
     }
     spin_lock_init(&ts_data->irq_lock);
     mutex_init(&ts_data->report_mutex);
     mutex_init(&ts_data->bus_lock);
     init_waitqueue_head(&ts_data->ts_waitqueue);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-    wakeup_source_init(&ts_data->ws, "fts_ws");
-    ts_data->p_ws = &ts_data->ws;
-#else
-    ts_data->p_ws = wakeup_source_register(ts_data->dev, "fts_ws");
-#endif
 
     ret = fts_bus_init(ts_data);
     if (ret) {
@@ -2523,11 +2382,10 @@ int fts_ts_probe_entry(struct fts_ts_data *ts_data)
     init_completion(&ts_data->pm_completion);
     ts_data->pm_suspend = false;
 #endif
-    ts_data->low_battery_mode = DISABLE;
 
-    ret = fts_notifier_callback_init(ts_data);
-    if (ret) {
-        FTS_ERROR("init notifier callback fail");
+    ts_data->disp_notifier.notifier_call = fts_drm_state_change_callback;
+    if (mi_disp_register_client(&ts_data->disp_notifier) < 0) {
+	    FTS_ERROR("ERROR: register notifier failed!\n");
     }
 
     FTS_FUNC_EXIT();
@@ -2569,13 +2427,8 @@ err_power_init:
 err_gpio_config:
     kfree_safe(ts_data->touch_buf);
 err_bus_init:
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-    wakeup_source_trash(&ts_data->ws);
-    ts_data->p_ws = NULL;
-#else
-    wakeup_source_unregister(ts_data->p_ws);
-#endif
     cancel_work_sync(&ts_data->resume_work);
+    cancel_work_sync(&ts_data->suspend_work);
     if (ts_data->ts_workqueue) destroy_workqueue(ts_data->ts_workqueue);
     kfree_safe(ts_data->bus_tx_buf);
     kfree_safe(ts_data->bus_rx_buf);
@@ -2589,7 +2442,7 @@ int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 {
     FTS_FUNC_ENTER();
     cancel_work_sync(&ts_data->resume_work);
-    fts_notifier_callback_exit(ts_data);
+    cancel_work_sync(&ts_data->suspend_work);
     free_irq(ts_data->irq, ts_data);
     fts_fwupg_exit(ts_data);
     fts_esdcheck_exit(ts_data);
@@ -2608,6 +2461,7 @@ int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 #if FTS_PEN_EN
     input_unregister_device(ts_data->pen_dev);
 #endif
+    mi_disp_unregister_client(&ts_data->disp_notifier);
     if (ts_data->ts_workqueue) destroy_workqueue(ts_data->ts_workqueue);
     if (gpio_is_valid(ts_data->pdata->reset_gpio))
         gpio_free(ts_data->pdata->reset_gpio);
@@ -2632,12 +2486,6 @@ int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 
 #if FTS_POWER_SOURCE_CUST_EN
     fts_power_source_exit(ts_data);
-#endif
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-    wakeup_source_trash(&ts_data->ws);
-    ts_data->p_ws = NULL;
-#else
-    wakeup_source_unregister(ts_data->p_ws);
 #endif
     kfree_safe(ts_data->touch_buf);
     kfree_safe(ts_data->bus_tx_buf);

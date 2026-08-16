@@ -69,7 +69,6 @@
 #include <linux/timekeeping.h>
 #endif
 #include "focaltech_common.h"
-#include "../touchpanel_event_notify/touchpanel_event_notify.h"
 
 /*****************************************************************************
 * Private constant and macro definitions using #define
@@ -246,6 +245,7 @@ struct fts_ts_data {
     struct ts_ic_info ic_info;
     struct workqueue_struct *ts_workqueue;
     struct work_struct resume_work;
+    struct work_struct suspend_work;
     struct delayed_work esdcheck_work;
     struct delayed_work prc_work;
     struct delayed_work fwdbg_work;
@@ -255,10 +255,6 @@ struct fts_ts_data {
     spinlock_t irq_lock;
     struct mutex report_mutex;
     struct mutex bus_lock;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-    struct wakeup_source ws;
-#endif
-    struct wakeup_source *p_ws;
     unsigned long intr_jiffies;
     int irq;
     int log_level;
@@ -276,7 +272,6 @@ struct fts_ts_data {
     bool glove_mode;
     bool cover_mode;
     bool charger_mode;
-    bool low_battery_mode;
     bool earphone_mode;
     bool edgepalm_mode;
     bool touch_analysis_support;
@@ -335,7 +330,6 @@ struct fts_ts_data {
 #elif defined(CONFIG_FB)
     struct notifier_block fb_notif;
 #endif
-    struct notifier_block power_level_notifier;
 
 };
 

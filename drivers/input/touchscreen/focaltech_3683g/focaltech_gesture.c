@@ -264,35 +264,6 @@ static int fts_create_gesture_sysfs(struct device *dev)
     return 0;
 }
 
-void fts_fod_report_key(struct fts_ts_data *ts_data)
-{
-    //FTS_DEBUG("Enter, ts_data->fod_info.fp_down = %d, ts_data->fod_info.fp_down_report = %d",
-    //			ts_data->fod_info.fp_down, ts_data->fod_info.fp_down_report);
-    struct touchpanel_coordinate coordinate;
-    memset(&coordinate, 0, sizeof(coordinate));
-    if ((ts_data->fod_fp_down) && (!ts_data->fod_info.fp_down_report)) {
-        ts_data->fod_info.fp_down_report = 1;
-        input_report_key(ts_data->input_dev, KEY_GESTURE_FOD, 1);
-        input_sync(ts_data->input_dev);
-        FTS_DEBUG("KEY_GESTURE_FOD, 1");
-        coordinate.x = ts_data->fod_info.fp_x;
-        coordinate.y = ts_data->fod_info.fp_y;
-        touchpanel_event_call_notifier(TOUCHPANEL_FPEVENT_DOWN, (void *)&coordinate);
-    } else if ((!ts_data->fod_fp_down) && (ts_data->fod_info.fp_down_report)) {
-        ts_data->fod_info.fp_down_report = 0;
-        input_report_key(ts_data->input_dev, KEY_GESTURE_FOD, 0);
-        input_sync(ts_data->input_dev);
-        FTS_DEBUG("KEY_GESTURE_FOD, 0");
-        coordinate.x = ts_data->fod_info.fp_x;
-        coordinate.y = ts_data->fod_info.fp_y;
-        touchpanel_event_call_notifier(TOUCHPANEL_FPEVENT_UP, (void *)&coordinate);
-        if (ts_data->fod_mode == FTS_FOD_UNCLOCK) {
-            fts_write_reg(FTS_REG_FOD_MODE_EN, DISABLE);
-        }
-    }
-}
-
-
 void fts_palm_to_sleep_report_key(struct fts_ts_data *ts_data)
 {
     u8 palm_to_sleep_status = 0xFF;
@@ -475,7 +446,7 @@ int fts_gesture_suspend(struct fts_ts_data *ts_data)
         fts_write_reg(0xD1, 0x7F);
     }
 
-    if ((ts_data->gesture_support) || (ts_data->fod_mode)) {
+    if (ts_data->gesture_support) {
         for (i = 0; i < 5; i++) {
             fts_write_reg(FTS_REG_GESTURE_EN, ENABLE);
             msleep(1);
@@ -536,7 +507,6 @@ int fts_gesture_init(struct fts_ts_data *ts_data)
     input_set_capability(input_dev, EV_KEY, KEY_GESTURE_V);
     input_set_capability(input_dev, EV_KEY, KEY_GESTURE_Z);
     input_set_capability(input_dev, EV_KEY, KEY_GESTURE_C);
-    input_set_capability(input_dev, EV_KEY, KEY_GESTURE_FOD);
     input_set_capability(input_dev, EV_KEY, KEY_GESTURE_WAKEUP);
     input_set_capability(input_dev, EV_KEY, KEY_PALM_TO_SLEEP);
 
@@ -555,7 +525,6 @@ int fts_gesture_init(struct fts_ts_data *ts_data)
     __set_bit(KEY_GESTURE_V, input_dev->keybit);
     __set_bit(KEY_GESTURE_C, input_dev->keybit);
     __set_bit(KEY_GESTURE_Z, input_dev->keybit);
-    __set_bit(KEY_GESTURE_FOD, input_dev->keybit);
     __set_bit(KEY_GESTURE_WAKEUP, input_dev->keybit);
     __set_bit(KEY_PALM_TO_SLEEP, input_dev->keybit);
 

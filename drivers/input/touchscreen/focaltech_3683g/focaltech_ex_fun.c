@@ -1411,42 +1411,6 @@ static const struct proc_ops fts_gesture_fops = {
     .proc_release = single_release,
 };
 
-#if FTS_FOD_EN
-/* fts_fod_mode node */
-static ssize_t fts_fod_show(
-    struct device *dev, struct device_attribute *attr, char *buf)
-{
-    int count = 0;
-    u8 val = 0;
-    struct fts_ts_data *ts_data = dev_get_drvdata(dev);
-
-    mutex_lock(&ts_data->input_dev->mutex);
-    fts_read_reg(FTS_REG_FOD_MODE_EN, &val);
-    count = snprintf(buf, PAGE_SIZE, "FOD Mode:%s\n", ts_data->fod_mode ? "On" : "Off");
-    count += snprintf(buf + count, PAGE_SIZE, "Reg(0xCF)=%d\n", val);
-    mutex_unlock(&ts_data->input_dev->mutex);
-
-    return count;
-}
-
-static ssize_t fts_fod_store(
-    struct device *dev,
-    struct device_attribute *attr, const char *buf, size_t count)
-{
-    struct fts_ts_data *ts_data = dev_get_drvdata(dev);
-
-    mutex_lock(&ts_data->input_dev->mutex);
-    if (FTS_SYSFS_ECHO_ON(buf)) {
-        fts_fod_enable(ENABLE);
-    } else if (FTS_SYSFS_ECHO_OFF(buf)) {
-        fts_fod_enable(DISABLE);
-    }
-    mutex_unlock(&ts_data->input_dev->mutex);
-
-    return count;
-}
-#endif
-
 /*****************************************************************************
 *TP_charger_mode
 *****************************************************************************/
@@ -1515,70 +1479,6 @@ static const struct proc_ops TP_charger_fops = {
     .proc_release = single_release,
 };
 
-/*****************************************************************************
-*fts_fod_mode
-*****************************************************************************/
-#if FTS_FOD_EN
-static int fts_fod_proc_show(struct seq_file *s, void *unused)
-{
-    u8 val = 0;
-    struct fts_ts_data *ts_data = fts_data;
-
-    mutex_lock(&ts_data->input_dev->mutex);
-    fts_read_reg(FTS_REG_FOD_MODE_EN, &val);
-
-    seq_printf(s, "Fod Mode:%d\n", ts_data->fod_mode);
-    seq_printf(s, "Reg(0xCF)=%d\n", val);
-    mutex_unlock(&ts_data->input_dev->mutex);
-
-    return 0;
-}
-
-static ssize_t fts_fod_proc_store(
-    struct file *filp, const char __user *ubuf, size_t count, loff_t *ppos)
-{
-    char buf[20];
-    u32 tmp;
-    struct fts_ts_data *ts_data = fts_data;
-
-    memset(buf, 0x00, sizeof(buf));
-    if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-        return -EFAULT;
-    if (kstrtouint(buf, 0, &tmp))
-        return -EINVAL;
-
-    mutex_lock(&ts_data->input_dev->mutex);
-    if (tmp == FTS_FOD_ENABLE) {
-        FTS_DEBUG("enable fod");
-        fts_fod_enable(ENABLE);
-    } else if (tmp == FTS_FOD_UNCLOCK) {
-        FTS_DEBUG("unlock fod");
-        ts_data->fod_mode = FTS_FOD_UNCLOCK;
-    } else if (tmp == FTS_FOD_DISABLE) {
-        FTS_DEBUG("disable fod");
-        fts_fod_enable(DISABLE);
-    } else if (tmp == FTS_DISABLE_FOD_NOT_POWEROFF) {
-        FTS_DEBUG("disable fod, but not power off");
-        fts_fod_enable(FTS_DISABLE_FOD_NOT_POWEROFF);
-    }
-    mutex_unlock(&ts_data->input_dev->mutex);
-
-    return count;
-}
-
-static int fts_fod_open(struct inode* inode, struct file* file){
-    return single_open(file, fts_fod_proc_show, NULL);
-}
-
-static const struct proc_ops fts_fod_fops = {
-    .proc_open   = fts_fod_open,
-    .proc_write  = fts_fod_proc_store,
-    .proc_read = seq_read,
-    .proc_lseek = seq_lseek,
-    .proc_release = single_release,
-};
-#endif
-
 static int fts_proc_palm_to_sleep_support_open(struct inode* inode, struct file* file){
     return single_open(file, fts_proc_palm_to_sleep_support_read, NULL);
 }
@@ -1620,9 +1520,6 @@ static DEVICE_ATTR(fts_log_level, S_IRUGO | S_IWUSR, fts_log_level_show, fts_log
 static DEVICE_ATTR(fts_pen, S_IRUGO | S_IWUSR, fts_pen_show, fts_pen_store);
 static DEVICE_ATTR(fts_touch_size, S_IRUGO | S_IWUSR, fts_touchsize_show, fts_touchsize_store);
 static DEVICE_ATTR(fts_ta_mode, S_IRUGO | S_IWUSR, fts_tamode_show, fts_tamode_store);
-#if FTS_FOD_EN
-static DEVICE_ATTR(fts_fod_mode, S_IRUGO | S_IWUSR, fts_fod_show, fts_fod_store);
-#endif
 
 /* add your attr in here*/
 static struct attribute *fts_attributes[] = {
@@ -1640,9 +1537,6 @@ static struct attribute *fts_attributes[] = {
     &dev_attr_fts_pen.attr,
     &dev_attr_fts_touch_size.attr,
     &dev_attr_fts_ta_mode.attr,
-#if FTS_FOD_EN
-    &dev_attr_fts_fod_mode.attr,
-#endif
     NULL
 };
 
@@ -1681,9 +1575,6 @@ int fts_procfs_init(void)
         FTS_ERROR("procfs(proc/touchpanel) create fail");
 	return -ENOMEM;
     } else {
-#if FTS_FOD_EN
-        proc_create_data("fod_mode", 0664, proc_touchpanel, &fts_fod_fops, NULL);
-#endif
         proc_create_data("TP_charger_flags", 0664, proc_touchpanel, &TP_charger_fops, NULL);
         proc_create_data("gesture_mode", 0664, proc_touchpanel, &fts_gesture_fops, NULL);
         proc_create_data("gesture_code", 0664, proc_touchpanel, &fts_gesture_point_fops, NULL);

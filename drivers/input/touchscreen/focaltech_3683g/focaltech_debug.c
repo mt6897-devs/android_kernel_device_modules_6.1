@@ -1021,17 +1021,6 @@ int fts_fwdbg_irq_handler(struct fts_ts_data *ts_data)
     }
 #endif
 
-#if FTS_FOD_EN
-    if (ts_data->fod_mode) {
-        fts_fod_readdata(ts_data);
-        if (ts_data->fod_info.event_type == FTS_REG_FOD_INFO_ID) {
-            fts_fod_report_key(ts_data);
-            if (ts_data->suspended)
-                ret = TOUCH_FOD;
-        }
-    }
-#endif
-
     if (ts_data->suspended && ts_data->gesture_support) {
         if (fts_gesture_readdata(ts_data, touch_buf) == FTS_RETVAL_IGNORE_TOUCHES) {
             ret = TOUCH_IGNORE;

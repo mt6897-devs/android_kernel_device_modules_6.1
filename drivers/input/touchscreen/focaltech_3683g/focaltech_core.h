@@ -122,13 +122,6 @@
 #define FTS_MAX_BUS_BUF                     4096
 
 #define FTS_MAX_CUSTOMER_INFO               32
-#define FTS_FOD_BUF_LEN                     9
-#define FTS_REG_FOD_INFO_ID                  0x26
-#define KEY_GESTURE_FOD                    0xF9
-#define FTS_FOD_DISABLE                      0
-#define FTS_FOD_ENABLE                      1
-#define FTS_FOD_UNCLOCK                     2
-#define FTS_DISABLE_FOD_NOT_POWEROFF        3
 
 #define FTS_RETVAL_IGNORE_TOUCHES           1
 
@@ -224,17 +217,6 @@ struct pen_event {
     int tool_type;
 };
 
-struct fts_fod_info {
-    u8 fp_id;
-    u8 event_type;
-    u8 fp_area_rate;
-    u8 tp_area;
-    u16 fp_x;
-    u16 fp_y;
-    u8 fp_down;
-    u8 fp_down_report;
-};
-
 struct fts_ts_data {
     struct i2c_client *client;
     struct spi_device *spi;
@@ -279,7 +261,6 @@ struct fts_ts_data {
     bool prc_support;
     bool prc_mode;
     bool esd_support;
-    u8 fod_mode;
     bool proximity_mode;
     bool fhp_mode;
     bool pocket_mode;
@@ -290,7 +271,6 @@ struct fts_ts_data {
     u8 gesture_bmode;       /*gesture buffer mode*/
     bool palm_to_sleep_support;
 
-    int fod_fp_down;
     int edgepalm_value;
     int fwdbg_value;
 
@@ -313,7 +293,6 @@ struct fts_ts_data {
     int bus_ver;
     char customer_info[FTS_MAX_CUSTOMER_INFO];
     struct regulator *iovdd;
-    struct fts_fod_info fod_info;
 #if FTS_PINCTRL_EN
     struct pinctrl *pinctrl;
     struct pinctrl_state *pins_active;
@@ -352,7 +331,6 @@ enum _FTS_TOUCH_ETYPE {
     TOUCH_PEN_v2 = 0x0C,
     TOUCH_FWDBG = 0x0E,
     TOUCH_FW_INIT = 0x81,
-    TOUCH_FOD = 0x83,
     TOUCH_IGNORE = 0xFE,
     TOUCH_ERROR = 0xFF,
 };
@@ -400,12 +378,6 @@ int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *data);
 int fts_gesture_suspend(struct fts_ts_data *ts_data);
 int fts_gesture_resume(struct fts_ts_data *ts_data);
 int fts_gesture_point_show(struct seq_file *s, void *unused);
-
-#if FTS_FOD_EN
-void fts_fod_enable(int enable);
-void fts_fod_report_key(struct fts_ts_data *ts_data);
-int fts_fod_readdata(struct fts_ts_data *ts_data);
-#endif
 
 /* palm to sleep */
 void fts_palm_to_sleep_report_key(struct fts_ts_data *ts_data);

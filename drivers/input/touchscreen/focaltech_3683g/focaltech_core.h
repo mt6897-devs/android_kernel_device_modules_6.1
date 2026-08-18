@@ -310,12 +310,14 @@ struct fts_ts_data {
     struct notifier_block fb_notif;
 #endif
     struct mutex cmd_update_mutex;
+    int fod_status;
     u8 gesture_status;
 };
 
 enum GESTURE_MODE_TYPE {
     GESTURE_DOUBLETAP = 0,
     GESTURE_SINGLETAP = 1,
+    GESTURE_FOD  = 2,
 };
 
 enum _FTS_BUS_TYPE {
@@ -383,6 +385,8 @@ int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *data);
 int fts_gesture_suspend(struct fts_ts_data *ts_data);
 int fts_gesture_resume(struct fts_ts_data *ts_data);
 int fts_gesture_point_show(struct seq_file *s, void *unused);
+int fts_gesture_reg_write(u8 mask, bool enable);
+int fts_fod_reg_write(u8 mask, bool enable);
 
 /* palm to sleep */
 void fts_palm_to_sleep_report_key(struct fts_ts_data *ts_data);

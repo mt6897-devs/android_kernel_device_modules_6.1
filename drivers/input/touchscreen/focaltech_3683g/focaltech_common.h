@@ -118,6 +118,9 @@
 #define FTS_REG_GAME_MODE_EN                0x99
 #define FTS_REG_POWER_LEVEL                 0xCB
 
+#define FTS_REG_FOD_MODE_EN 0xCF
+#define FTS_REG_GESTURE_FOD_ON 0x02
+
 #define FTS_SYSFS_ECHO_ON(buf)      (buf[0] == '1')
 #define FTS_SYSFS_ECHO_OFF(buf)     (buf[0] == '0')
 

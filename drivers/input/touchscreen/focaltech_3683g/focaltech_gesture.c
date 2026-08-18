@@ -61,6 +61,7 @@
 #define GESTURE_DOWN                            0x23
 #define GESTURE_DOUBLECLICK                     0x24
 #define GESTURE_SINGLECLICK                     0x25
+#define GESTURE_FODPRESS                        0x26
 #define GESTURE_O                               0x30
 #define GESTURE_W                               0x31
 #define GESTURE_M                               0x32
@@ -73,6 +74,7 @@
 
 #define GESTURE_DOUBLETAP_EN   (1 << GESTURE_DOUBLETAP)
 #define GESTURE_SINGLETAP_EN   (1 << GESTURE_SINGLETAP)
+#define GESTURE_FOD_EN         (1 << GESTURE_FOD)
 
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
@@ -297,6 +299,10 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
         notify_gesture_double_tap();
         FTS_DEBUG("gesture double click");
     }
+    if (gesture_id == GESTURE_FODPRESS) {
+        update_fod_press_status(1);
+        FTS_DEBUG("gesture fod press");
+    }
     switch (gesture_id) {
     case GESTURE_LEFT:
         gesture = KEY_GESTURE_LEFT;
@@ -406,6 +412,11 @@ int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *touch_buf)
     if (gesture->gesture_id == GESTURE_SINGLECLICK &&
         !(ts_data->gesture_status & GESTURE_SINGLETAP_EN)) {
             FTS_INFO("single tap is not enabled!");
+            return 1;
+    }
+    if (gesture->gesture_id == GESTURE_FODPRESS &&
+        !(ts_data->gesture_status & GESTURE_FOD_EN)) {
+            FTS_INFO("fod press is not enabled!");
             return 1;
     }
     FTS_DEBUG("gesture_id=%d, point_num=%d",

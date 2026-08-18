@@ -56,6 +56,9 @@
 #define FTS_IOVCC_VTG_MAX_UV                1800000
 #endif
 
+#define LCD_ID_DET1 (385) // 0x181
+#define LCD_ID_DET2 (391) // 0x187
+
 /*****************************************************************************
 * Global variable or extern global variabls/functions
 *****************************************************************************/
@@ -2042,6 +2045,33 @@ int fts_drm_state_change_callback(struct notifier_block *self,
 	}
 
 	return 0;
+}
+
+int fts_check_ts_id_gpio(struct device *dev)
+{
+    int ret;
+    int gpio_det1, gpio_det2;
+
+    ret = gpio_direction_input(LCD_ID_DET1);
+    if (ret)
+        return ret;
+
+    ret = gpio_direction_input(LCD_ID_DET2);
+    if (ret)
+        return ret;
+
+    gpio_det1 = gpio_get_value(LCD_ID_DET1);
+    gpio_det2 = gpio_get_value(LCD_ID_DET2);
+
+    FTS_INFO("gpio_det1 = %d, gpio_det2 = %d\n", gpio_det1, gpio_det2);
+
+    if (!gpio_det1 && !gpio_det2) {
+        FTS_INFO("focaltech touchscreen detected");
+	return 0;
+    }
+
+    FTS_ERROR("focaltech touchscreen not detected");
+    return -ENODEV;
 }
 
 static void fts_update_gesture_state(struct fts_ts_data *ts_data, int bit, bool enable)

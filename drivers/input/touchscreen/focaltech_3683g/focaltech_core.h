@@ -169,8 +169,6 @@
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
 *****************************************************************************/
-extern char panel_name_find[128];
-
 struct ftxxxx_proc {
     struct proc_dir_entry *proc_entry;
     u8 opmode;
@@ -384,6 +382,8 @@ int fts_bus_set_speed(struct fts_ts_data *ts_data, u32 speed);
 int fts_hid2std(int mode);
 int fts_ts_probe_entry(struct fts_ts_data *ts_data);
 int fts_ts_remove_entry(struct fts_ts_data *ts_data);
+
+int fts_check_ts_id_gpio(struct device *dev);
 
 /* Gesture functions */
 int fts_gesture_init(struct fts_ts_data *ts_data);

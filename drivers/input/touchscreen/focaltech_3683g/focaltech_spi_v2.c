@@ -467,6 +467,10 @@ static int fts_ts_probe(struct spi_device *spi)
     int ret = 0;
     struct fts_ts_data *ts_data = NULL;
 
+    ret = fts_check_ts_id_gpio(&spi->dev);
+    if (ret)
+        return ret;
+
     FTS_INFO("Touch Screen(SPI-2 BUS) driver prboe...");
     spi->mode = SPI_MODE_0;
     spi->bits_per_word = 8;
@@ -620,10 +624,6 @@ static int __init fts_ts_spi_init(void)
     int ret = 0;
 
     FTS_FUNC_ENTER();
-    if (!strstr(panel_name_find, "rm69220_boe") && !strstr(panel_name_find, "rm69220_vxn")) {
-        FTS_ERROR("lcd name: %s\n", panel_name_find);
-        return -ENODEV;
-    }
     ret = spi_register_driver(&fts_ts_spi_driver);
     if ( ret < 0 ) {
         FTS_ERROR("Focaltech touch screen driver init failed!");

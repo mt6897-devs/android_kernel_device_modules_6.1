@@ -41,7 +41,6 @@
 #define FTS_FW_REQUEST_SUPPORT                      1
 /* Example: focaltech_ts_fw_tianma.bin */
 #define FTS_FW_NAME_PREX_WITH_REQUEST               "focaltech_ts_fw"
-extern char touch_version[32];
 /*****************************************************************************
 * Global variable or extern global variabls/functions
 *****************************************************************************/
@@ -2159,7 +2158,6 @@ static void fts_fwupg_work(struct work_struct *work)
     int ret = 0;
     int irq_need_recovery = false;
     struct fts_upgrade *upg = fwupgrade;
-    u8 ver = 0;
 
 #if !FTS_AUTO_UPGRADE_EN
     FTS_INFO("FTS_AUTO_UPGRADE_EN is disabled, not upgrade when power on");
@@ -2197,9 +2195,6 @@ static void fts_fwupg_work(struct work_struct *work)
     if (irq_need_recovery)
         fts_irq_enable();
     upg->ts_data->fw_loading = 0;
-    
-    fts_fwupg_get_ver_in_tp(&ver);
-    snprintf(touch_version, sizeof(touch_version),"ft3683g ver %d.0",ver);
 }
 
 int fts_fwupg_init(struct fts_ts_data *ts_data)

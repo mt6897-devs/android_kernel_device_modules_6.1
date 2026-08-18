@@ -52,8 +52,6 @@
 #define FTS_DRIVER_PEN_NAME                 "fts_ts,pen"
 
 #if FTS_POWER_SOURCE_CUST_EN
-#define FTS_VTG_MIN_UV                      2800000
-#define FTS_VTG_MAX_UV                      3300000
 #define FTS_IOVCC_VTG_MIN_UV                1800000
 #define FTS_IOVCC_VTG_MAX_UV                1800000
 #endif
@@ -1594,40 +1592,25 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 {
     int ret = 0;
 
-    if (IS_ERR_OR_NULL(ts_data->vdd)) {
-        FTS_ERROR("vdd is invalid");
-        return -EINVAL;
-    }
-
     FTS_FUNC_ENTER();
     if (enable) {
         if (ts_data->power_disabled) {
             fts_set_reset(ts_data, 0);
             fts_msleep(2);
             FTS_INFO("set power to on");
-            ret = regulator_enable(ts_data->vdd);
-            if (ret) {
-                FTS_ERROR("enable vdd regulator failed,ret=%d", ret);
-            }
-
-            if (!IS_ERR_OR_NULL(ts_data->iovcc)) {
-                ret = regulator_enable(ts_data->iovcc);
+            if (!IS_ERR_OR_NULL(ts_data->iovdd)) {
+                ret = regulator_enable(ts_data->iovdd);
                 if (ret) {
-                    FTS_ERROR("enable iovcc regulator failed,ret=%d", ret);
+                    FTS_ERROR("enable iovdd regulator failed,ret=%d", ret);
                 }
             }
-#if 0
-	    FTS_DEBUG("[GPIO] avdd gpio pull hight");
+
+            FTS_DEBUG("[GPIO] avdd gpio pull hight");
             ret = gpio_direction_output(ts_data->pdata->avdd_gpio, 1);
             if (ret) {
                 FTS_ERROR("[GPIO]set_direction for avdd gpio hight failed");
             }
-#endif
-            FTS_DEBUG("[GPIO] dvdd gpio pull hight");
-            ret = gpio_direction_output(ts_data->pdata->dvdd_gpio, 1);
-            if (ret) {
-                FTS_ERROR("[GPIO]set_direction for dvdd gpio failed");
-            }
+
             fts_msleep(2);
             fts_set_reset(ts_data, 1);
             ts_data->power_disabled = false;
@@ -1637,28 +1620,19 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
             fts_set_reset(ts_data, 0);
             fts_msleep(2);
             FTS_INFO("set power to off");
-            if (!IS_ERR_OR_NULL(ts_data->iovcc)) {
-                ret = regulator_disable(ts_data->iovcc);
+            if (!IS_ERR_OR_NULL(ts_data->iovdd)) {
+                ret = regulator_disable(ts_data->iovdd);
                 if (ret) {
-                    FTS_ERROR("disable iovcc regulator failed,ret=%d", ret);
-                }
+                    FTS_ERROR("disable iovdd regulator failed,ret=%d", ret);
+		}
             }
-            ret = regulator_disable(ts_data->vdd);
-            if (ret) {
-                FTS_ERROR("disable vdd regulator failed,ret=%d", ret);
-            }
-#if 0
+
             FTS_DEBUG("[GPIO] avdd gpio pull low");
             ret = gpio_direction_output(ts_data->pdata->avdd_gpio, 0);
             if (ret) {
                 FTS_ERROR("[GPIO]set_direction for avdd gpio hight failed");
             }
-#endif
-            FTS_DEBUG("[GPIO] dvdd gpio pull low");
-            ret = gpio_direction_output(ts_data->pdata->dvdd_gpio, 0);
-            if (ret) {
-                FTS_ERROR("[GPIO]set_direction for dvdd gpio failed");
-            }
+
             ts_data->power_disabled = true;
         }
     }
@@ -1682,39 +1656,29 @@ static int fts_power_source_init(struct fts_ts_data *ts_data)
     int ret = 0;
 
     FTS_FUNC_ENTER();
-    ts_data->vdd = regulator_get(ts_data->dev, "vdd");
-    if (IS_ERR_OR_NULL(ts_data->vdd)) {
-        ret = PTR_ERR(ts_data->vdd);
-        FTS_ERROR("get vdd regulator failed,ret=%d", ret);
-        return ret;
-    }
 
-    if (regulator_count_voltages(ts_data->vdd) > 0) {
-        ret = regulator_set_voltage(ts_data->vdd, FTS_VTG_MIN_UV,
-                                    FTS_VTG_MAX_UV);
-        if (ret) {
-            FTS_ERROR("vdd regulator set_vtg failed ret=%d", ret);
-            regulator_put(ts_data->vdd);
+    if (strlen(ts_data->pdata->iovdd_name)) {
+        ts_data->iovdd = regulator_get(ts_data->dev,
+                           ts_data->pdata->iovdd_name);
+        if (IS_ERR(ts_data->iovdd)) {
+            ret = PTR_ERR(ts_data->iovdd);
+            FTS_ERROR("get iovdd regulator failed, ret=%d", ret);
             return ret;
         }
     }
 
-    ts_data->iovcc = regulator_get(ts_data->dev, "iovcc");
-    if (!IS_ERR_OR_NULL(ts_data->iovcc)) {
-        if (regulator_count_voltages(ts_data->iovcc) > 0) {
-            ret = regulator_set_voltage(ts_data->iovcc,
-                                        FTS_IOVCC_VTG_MIN_UV,
-                                        FTS_IOVCC_VTG_MAX_UV);
-            if (ret) {
-                FTS_ERROR("iovcc regulator set_vtg failed,ret=%d", ret);
-                regulator_put(ts_data->iovcc);
-            }
+    if (regulator_count_voltages(ts_data->iovdd) > 0) {
+        ret = regulator_set_voltage(ts_data->iovdd,
+                        FTS_IOVCC_VTG_MIN_UV,
+                        FTS_IOVCC_VTG_MAX_UV);
+        if (ret) {
+            FTS_ERROR("iovdd regulator set_vtg failed, ret=%d", ret);
+            regulator_put(ts_data->iovdd);
+            return ret;
         }
     }
-    
-#if 0
+
     /* request avdd gpio*/
-    //GPIO interface is left on the hardware schematic for software synchronization adaptation
     if (gpio_is_valid(ts_data->pdata->avdd_gpio)) {
         ret = gpio_request(ts_data->pdata->avdd_gpio, "fts_avdd_gpio");
         if (ret) {
@@ -1722,27 +1686,16 @@ static int fts_power_source_init(struct fts_ts_data *ts_data)
             goto err_avdd_gpio_dir;
         }
     }
-#endif
-   /* request dvdd gpio */
-   if (gpio_is_valid(ts_data->pdata->dvdd_gpio)) {
-        ret = gpio_request(ts_data->pdata->dvdd_gpio, "fts_dvdd_gpio");
-        if (ret) {
-            FTS_ERROR("[GPIO]dvdd gpio request failed");
-            goto err_dvdd_gpio_dir;
-        }
-    }
-
 
     ret = fts_power_source_ctrl(ts_data, ENABLE);
     if (ret) {
         FTS_ERROR("fail to enable power(regulator)");
     }
 
-err_dvdd_gpio_dir:
+err_avdd_gpio_dir:
     if (gpio_is_valid(ts_data->pdata->avdd_gpio))
         gpio_free(ts_data->pdata->avdd_gpio);
 
-//err_avdd_gpio_dir:
     FTS_FUNC_EXIT();
     return ret;
 }
@@ -1751,16 +1704,10 @@ static int fts_power_source_exit(struct fts_ts_data *ts_data)
 {
     fts_power_source_ctrl(ts_data, DISABLE);
 
-    if (!IS_ERR_OR_NULL(ts_data->vdd)) {
-        if (regulator_count_voltages(ts_data->vdd) > 0)
-            regulator_set_voltage(ts_data->vdd, 0, FTS_VTG_MAX_UV);
-        regulator_put(ts_data->vdd);
-    }
-
-    if (!IS_ERR_OR_NULL(ts_data->iovcc)) {
-        if (regulator_count_voltages(ts_data->iovcc) > 0)
-            regulator_set_voltage(ts_data->iovcc, 0, FTS_IOVCC_VTG_MAX_UV);
-        regulator_put(ts_data->iovcc);
+    if (!IS_ERR_OR_NULL(ts_data->iovdd)) {
+        if (regulator_count_voltages(ts_data->iovdd) > 0)
+            regulator_set_voltage(ts_data->iovdd, 0, FTS_IOVCC_VTG_MAX_UV);
+        regulator_put(ts_data->iovdd);
     }
 
     return 0;
@@ -1982,6 +1929,7 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
     int ret = 0;
     struct device_node *np = dev->of_node;
     u32 temp_val = 0;
+    const char *name_tmp;
 
     FTS_FUNC_ENTER();
     if (!np || !pdata) {
@@ -2039,17 +1987,22 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
     if (pdata->irq_gpio < 0)
         FTS_ERROR("Unable to get irq_gpio");
         
-    /* avdd, dvdd gpio info */
-#if 0
-    pdata->avdd_gpio = of_get_named_gpio_flags(np, "focaltech,avdd-gpio",
+    pdata->avdd_gpio = of_get_named_gpio_flags(np, "goodix,avdd-gpio",
                         0, &pdata->avdd_gpio_flags);
     if (pdata->avdd_gpio < 0)
         FTS_ERROR("Unable to get avdd_gpio");
-#endif
-    pdata->dvdd_gpio = of_get_named_gpio_flags(np, "focaltech,dvdd-gpio",
-                      0, &pdata->dvdd_gpio_flags);
-    if (pdata->dvdd_gpio < 0)
-        FTS_ERROR("Unable to get idvdd_gpio");
+
+    memset(pdata->iovdd_name, 0, sizeof(pdata->iovdd_name));
+    ret = of_property_read_string(np, "focaltech,iovdd-name", &name_tmp);
+    if (!ret) {
+        FTS_INFO("iovdd name from dt: %s", name_tmp);
+        if (strlen(name_tmp) < sizeof(pdata->iovdd_name))
+            strncpy(pdata->iovdd_name, name_tmp,
+                sizeof(pdata->iovdd_name));
+        else
+            FTS_INFO("invalied iovdd name length: %ld > %ld",
+                 strlen(name_tmp), sizeof(pdata->iovdd_name));
+    }
 
     ret = of_property_read_u32(np, "focaltech,max-touch-number", &temp_val);
     if (ret < 0) {

@@ -134,6 +134,7 @@
 
 #define FTS_REG_FW_DEBUG_EN                 0x9E
 
+#define FTS_MAX_STR_LABEL_LEN		    32
 
 /*****************************************************************************
 *  Alternative mode (When something goes wrong, the modules may be able to solve the problem.)
@@ -184,8 +185,7 @@ struct fts_ts_platform_data {
     u32 reset_gpio_flags;
     u32 avdd_gpio;
     u32 avdd_gpio_flags;
-    u32 dvdd_gpio;
-    u32 dvdd_gpio_flags;
+    char iovdd_name[FTS_MAX_STR_LABEL_LEN];
     bool have_key;
     u32 key_number;
     u32 keys[FTS_MAX_KEYS];
@@ -311,8 +311,7 @@ struct fts_ts_data {
     int bus_type;
     int bus_ver;
     char customer_info[FTS_MAX_CUSTOMER_INFO];
-    struct regulator *vdd;
-    struct regulator *iovcc;
+    struct regulator *iovdd;
     struct fts_fod_info fod_info;
 #if FTS_PINCTRL_EN
     struct pinctrl *pinctrl;

@@ -32,7 +32,7 @@
 #define SAVE_IN_CSV
 
 #define GOODIX_RESULT_SAVE_PATH "/data/misc/tp_selftest_data/Test_Data.csv"
-#define GOODIX_TEST_FILE_NAME "goodix"
+#define GOODIX_TEST_FILE_NAME "goodix_test_limits"
 #define DEFAULT_SEQ_FILE_SIZE 300 * 1024
 #define MAX_DATA_BUFFER 28000
 #define MAX_SHORT_NUM 15
@@ -600,16 +600,8 @@ static int goodix_init_testlimits(struct goodix_ts_test *ts_test)
 	char tmp_str[64] = { 0 };
 	int freq_cnt;
 
-	if (ts_core->lockdown_info[1] == 0x36)
-		sprintf(limit_file, "%s_test_limits_%d_TM.csv",
-			GOODIX_TEST_FILE_NAME, ts_core->fw_version.sensor_id);
-	else if (ts_core->lockdown_info[1] == 0x42) //CSOT
-		sprintf(limit_file, "%s_test_limits_%d.csv",
-			GOODIX_TEST_FILE_NAME, ts_core->fw_version.sensor_id);
-	else
-		sprintf(limit_file, "%s_test_limits_%d_TM.csv",
-			GOODIX_TEST_FILE_NAME, ts_core->fw_version.sensor_id);
-
+	sprintf(limit_file, "%s_%d.csv", GOODIX_TEST_FILE_NAME,
+		ts_core->fw_version.sensor_id);
 	ts_info("limit_file_name:%s", limit_file);
 
 	ret = request_firmware(&firmware, limit_file, dev);

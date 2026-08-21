@@ -41,7 +41,7 @@
 //#include "mi_disp_notifier.h"
 #include "../tp_get_lcm_name/tp_get_lcd_name.h"
 
-#define GOODIX_DEFAULT_CFG_NAME "goodix_cfg_group_m16.cfg"
+#define GOODIX_DEFAULT_CFG_NAME "goodix_cfg_group.cfg"
 #define GOOIDX_INPUT_PHYS "goodix_ts/input0"
 #define PINCTRL_STATE_ACTIVE "pmx_ts_active"
 #define PINCTRL_STATE_SUSPEND "pmx_ts_suspend"
@@ -1151,25 +1151,15 @@ static int goodix_parse_dt_resolution(struct device_node *node,
 {
 	int ret;
 
-#ifdef CONFIG_FACTORY_BUILD
-	ret = of_property_read_u32(node, "goodix,panel-max-x-10",
+	ret = of_property_read_u32(node, "goodix,panel-max-x",
 				   &board_data->panel_max_x);
-#else
-	ret = of_property_read_u32(node, "goodix,panel-max-x-16",
-				   &board_data->panel_max_x);
-#endif
 	if (ret) {
 		ts_err("failed get panel-max-x");
 		return ret;
 	}
 
-#ifdef CONFIG_FACTORY_BUILD
-	ret = of_property_read_u32(node, "goodix,panel-max-y-10",
+	ret = of_property_read_u32(node, "goodix,panel-max-y",
 				   &board_data->panel_max_y);
-#else
-	ret = of_property_read_u32(node, "goodix,panel-max-y-16",
-				   &board_data->panel_max_y);
-#endif
 	if (ret) {
 		ts_err("failed get panel-max-y");
 		return ret;
@@ -1276,36 +1266,19 @@ static int goodix_parse_dt(struct device_node *node,
 				sizeof(board_data->iovdd_name));
 	}
 
-	/* get firmware file name 
-	*gpio_38 = gpio_get_value(DISP_ID_DET);
-	*gpio_164 = gpio_get_value(DISP_ID1_DET);
-	*if (gpio_38 == 0 && gpio_164 == 1) {
-	*	name_tmp = "goodix_firmware_m16_TM.bin";
-	*} else
-	*	name_tmp = "goodix_firmware_m16_GVO.bin";
-	*/
-#ifdef CONFIG_FACTORY_BUILD
-	name_tmp = "goodix_firmware_10.bin";
-#else
-	name_tmp = "goodix_firmware_16.bin";
-#endif
-	ts_info("firmware name from dt: %s", name_tmp);
-	strncpy(board_data->fw_name, name_tmp, sizeof(board_data->fw_name));
+	r = of_property_read_string(node, "goodix,firmware-name", &name_tmp);
+	if (!r) {
+		scnprintf(board_data->fw_name, sizeof(board_data->fw_name),
+			  "%s.bin", name_tmp);
+		ts_info("firmware name from dt: %s", board_data->fw_name);
+	}
 
-	/* get config file name 
-	*if (gpio_38 == 0 && gpio_164 == 1) {
-	*	name_tmp = "goodix_cfg_group_m16_TM.bin";
-	*} else
-	*	name_tmp = "goodix_cfg_group_m16_GVO.bin";
-	*/
-#ifdef CONFIG_FACTORY_BUILD
-	name_tmp = "goodix_cfg_group_10.bin";
-#else
-	name_tmp = "goodix_cfg_group_16.bin";
-#endif
-	ts_info("config name from dt: %s", name_tmp);
-	strncpy(board_data->cfg_bin_name, name_tmp,
-		sizeof(board_data->cfg_bin_name));
+	r = of_property_read_string(node, "goodix,config-name", &name_tmp);
+	if (!r) {
+		scnprintf(board_data->cfg_bin_name,
+			  sizeof(board_data->cfg_bin_name), "%s.bin", name_tmp);
+		ts_info("config name from dt: %s", board_data->cfg_bin_name);
+	}
 
 	/* get xyz resolutions */
 	r = goodix_parse_dt_resolution(node, board_data);

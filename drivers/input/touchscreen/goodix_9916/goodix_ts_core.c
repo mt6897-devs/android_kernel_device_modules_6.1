@@ -39,7 +39,6 @@
 
 #include "goodix_ts_core.h"
 //#include "mi_disp_notifier.h"
-#include "../tp_get_lcm_name/tp_get_lcd_name.h"
 
 #define GOODIX_DEFAULT_CFG_NAME "goodix_cfg_group.cfg"
 #define GOOIDX_INPUT_PHYS "goodix_ts/input0"
@@ -48,8 +47,8 @@
 #define PINCTRL_STATE_BOOT "pmx_ts_boot"
 #define PINCTRL_STATE_SPIMODE "pmx_ts_spi_mode"
 
-#define DISP_ID_DET (30 + 38)
-#define DISP_ID1_DET (30 + 164)
+#define LCD_ID_DET1 (385) // 0x181
+#define LCD_ID_DET2 (391) // 0x187
 
 #ifdef CONFIG_TOUCH_BOOST
 extern void touch_irq_boost(void);
@@ -1137,6 +1136,33 @@ int goodix_ts_blocking_notify(enum ts_notify_event evt, void *v)
 	ret = blocking_notifier_call_chain(&ts_notifier_list,
 					   (unsigned long)evt, v);
 	return ret;
+}
+
+int goodix_check_ts_id_gpio(struct device *dev)
+{
+	int ret;
+	int gpio_det1, gpio_det2;
+
+	ret = gpio_direction_input(LCD_ID_DET1);
+	if (ret)
+		return ret;
+
+	ret = gpio_direction_input(LCD_ID_DET2);
+	if (ret)
+		return ret;
+
+	gpio_det1 = gpio_get_value(LCD_ID_DET1);
+	gpio_det2 = gpio_get_value(LCD_ID_DET2);
+
+	ts_info("gpio_det1 = %d, gpio_det2 = %d\n", gpio_det1, gpio_det2);
+
+	if (gpio_det1 && !gpio_det2) {
+		ts_info("goodix touchscreen detected");
+		return 0;
+	}
+
+	ts_err("goodix touchscreen not detected");
+	return -ENODEV;
 }
 
 #ifdef CONFIG_OF
@@ -4659,15 +4685,9 @@ static struct platform_driver goodix_ts_driver = {
 	.id_table = ts_core_ids,
 };
 
-extern int goodix_focal_panel_name(void);
 static int __init goodix_ts_core_init(void)
 {
 	int ret;
-
-	if (goodix_focal_panel_name() == 0)
-		ts_info("TP is goodix 9916r");
-	else
-		return 0;
 
 	ts_info("Core layer init:%s", GOODIX_DRIVER_VERSION);
 

@@ -939,4 +939,6 @@ void goodix_set_edge_filter_game(int edge_filter_corner_size_index);
 int brl_game(struct goodix_ts_core *cd, u8 data0, u8 data1);
 extern int brl_Edge_suppression(struct goodix_ts_core *cd);
 
+int goodix_check_ts_id_gpio(struct device *dev);
+
 #endif

@@ -245,6 +245,9 @@ static int goodix_spi_probe(struct spi_device *spi)
 	struct device_node *dp = spi->dev.of_node;
 
 	ts_info("goodix spi probe in");
+	ret = goodix_check_ts_id_gpio(&spi->dev);
+	if (ret)
+		return ret;
 
 	/* init spi_device */
 	spi->mode = SPI_MODE_0;

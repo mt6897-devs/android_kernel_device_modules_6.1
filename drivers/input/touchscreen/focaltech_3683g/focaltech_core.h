@@ -315,7 +315,6 @@ struct fts_ts_data {
     struct notifier_block fb_notif;
 #endif
     struct mutex cmd_update_mutex;
-    int fod_status;
     u8 gesture_status;
     struct xiaomi_touch_interface xiaomi_touch;
 };

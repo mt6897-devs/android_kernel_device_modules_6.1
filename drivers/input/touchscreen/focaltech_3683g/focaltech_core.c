@@ -1916,7 +1916,7 @@ static int fts_ts_suspend(struct device *dev)
     }
 #endif
 
-    if ((ts_data->fod_status != -1 && ts_data->fod_status != 100)) {
+    if (ts_data->gesture_status & GESTURE_FOD_EN) {
         fts_fod_set_reg(true);
     }
 
@@ -2135,7 +2135,6 @@ static void fts_init_xiaomi_touchfeature(struct fts_ts_data *ts_data)
 	FTS_INFO("touchfeature value init done");
 
 	ts_data->gesture_support = 1;
-	ts_data->fod_status = -1;
 
 	register_xiaomi_touch_client(TOUCH_ID_PRIMARY, &ts_data->xiaomi_touch);
 }

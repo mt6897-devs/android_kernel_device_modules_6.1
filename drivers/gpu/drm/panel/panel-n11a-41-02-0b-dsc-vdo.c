@@ -1193,15 +1193,15 @@ static int lcm_setbacklight_control(struct drm_panel *panel, unsigned int level)
 
 static int panel_get_wp_info(struct drm_panel *panel, char *buf, size_t size)
 {
-	/* Read 8 bytes from 0xA1 register
-	 * 	BIT[0-1] = Lux
-	 * 	BIT[2-4] = Wx
-	 * 	BIT[5-7] = Wy */
+	/* Read 3 bytes from 0xAC after switching DDIC register page with 0x6F */
 	static uint16_t lux = 0, wx = 0, wy = 0;
 	int i, ret = 0, count = 0;
 	struct lcm *ctx = NULL;
-	u8 tx_buf[] = { 0xA3 };
-	u8 rx_buf[8] = { 0x00 };
+	struct LCM_setting_table wp_info_set[] = {
+		{ 0x6F, 0, { 0 } },
+	};
+	u8 tx_buf[] = { 0xAC };
+	u8 rx_buf[3] = { 0x00 };
 	struct mtk_ddic_dsi_msg cmds[] = {
 		{
 			.channel = 0,
@@ -1211,7 +1211,7 @@ static int panel_get_wp_info(struct drm_panel *panel, char *buf, size_t size)
 			.tx_buf[0] = &tx_buf[0],
 			.tx_len[0] = 1,
 			.rx_buf[0] = &rx_buf[0],
-			.rx_len[0] = 8,
+			.rx_len[0] = 3,
 		},
 	};
 
@@ -1224,12 +1224,12 @@ static int panel_get_wp_info(struct drm_panel *panel, char *buf, size_t size)
 	}
 
 	/* try to get wp info from cmdline */
-	if (sscanf(oled_wp_cmdline, "%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx\n",
-		   &rx_buf[0], &rx_buf[1], &rx_buf[2], &rx_buf[3], &rx_buf[4],
-		   &rx_buf[5]) == 8) {
-		lux = rx_buf[0] << 8 | rx_buf[1];
-		wx = rx_buf[2] << 8 | rx_buf[3];
-		wy = rx_buf[4] << 8 | rx_buf[5];
+	if (sscanf(oled_wp_cmdline, "%02hhx%02hhx%02hhx", &rx_buf[0],
+		   &rx_buf[1], &rx_buf[2]) == 3) {
+		lux = rx_buf[0];
+		wx = rx_buf[1];
+		wy = rx_buf[2];
+
 		if (lux > 0 && wx > 0 && wy > 0) {
 			pr_info("%s: got wp info from cmdline\n", __func__);
 			goto done;
@@ -1248,6 +1248,7 @@ static int panel_get_wp_info(struct drm_panel *panel, char *buf, size_t size)
 		goto err;
 	}
 
+	mi_disp_panel_ddic_send_cmd(wp_info_set, ARRAY_SIZE(wp_info_set), 0);
 	memset(rx_buf, 0, sizeof(rx_buf));
 	for (i = 0; i < sizeof(cmds) / sizeof(struct mtk_ddic_dsi_msg); ++i) {
 		ret |= mtk_ddic_dsi_read_cmd(&cmds[i]);
@@ -1259,26 +1260,23 @@ static int panel_get_wp_info(struct drm_panel *panel, char *buf, size_t size)
 		goto err;
 	}
 
-	/* rx_buf[0-1] is lux(HEX), rx_buf[2-4] is wx(DEC), rx_buf[5-7] is wy(DEC) */
-	lux = rx_buf[0] << 8 | rx_buf[1];
-	wx = rx_buf[2] * 100 + rx_buf[3] * 10 + rx_buf[4];
-	wy = rx_buf[5] * 100 + rx_buf[6] * 10 + rx_buf[7];
+	pr_info("%s: rx=%02x %02x %02x\n", __func__, rx_buf[0], rx_buf[1],
+		rx_buf[2]);
+
+	lux = rx_buf[0];
+	wx = rx_buf[1];
+	wy = rx_buf[2];
 
 cache:
-	rx_buf[0] = (lux >> 8) & 0x00ff;
-	rx_buf[1] = lux & 0x00ff;
+	rx_buf[0] = lux;
+	rx_buf[1] = wx;
+	rx_buf[2] = wy;
 
-	rx_buf[2] = (wx >> 8) & 0x00ff;
-	rx_buf[3] = wx & 0x00ff;
-
-	rx_buf[4] = (wy >> 8) & 0x00ff;
-	rx_buf[5] = wy & 0x00ff;
 done:
-	count = snprintf(buf, size, "%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx\n",
-			 rx_buf[0], rx_buf[1], rx_buf[2], rx_buf[3], rx_buf[4],
-			 rx_buf[5]);
+	count = snprintf(buf, size, "%02hhx%02hhx%02hhx\n", rx_buf[0],
+			 rx_buf[1], rx_buf[2]);
 
-	pr_info("%s: Lux=0x%04hx, Wx=0x%04hx, Wy=0x%04hx\n", __func__, lux, wx,
+	pr_info("%s: Lux=0x%02hx, Wx=0x%02hx, Wy=0x%02hx\n", __func__, lux, wx,
 		wy);
 err:
 	pr_info("%s: -\n", __func__);

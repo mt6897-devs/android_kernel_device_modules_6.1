@@ -2145,6 +2145,8 @@ static int goodix_get_mode_value(void *private, enum touch_mode mode)
 		return (ts_core->gesture_type & GESTURE_FOD_PRESS) != 0;
 	case TOUCH_MODE_NONUI_MODE:
 		return ts_core->nonui_enabled ? 2 : 0;
+	case TOUCH_MODE_REPORT_RATE:
+		return ts_core->high_report_rate;
 	default:
 		ts_err("handler got mode %d, not implemented", mode);
 		return -EINVAL;
